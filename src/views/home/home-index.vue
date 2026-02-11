@@ -1,27 +1,689 @@
 <template>
-  <div>
-    <div class="text-orange-500">
-      hello world
+  <div class="min-h-screen bg-surface-50 text-surface-800 dark:bg-surface-950 dark:text-surface-0">
+    <div class="mx-auto flex min-h-screen max-w-[1600px]">
+      <aside
+        class="shrink-0 overflow-hidden border-r border-surface-200 bg-surface-0 transition-[width] duration-200 dark:border-surface-700 dark:bg-surface-900"
+        :class="isSidebarOpen ? 'w-80' : 'w-0 border-r-0'"
+      >
+        <div v-if="isSidebarOpen" class="flex h-screen flex-col gap-4 overflow-y-auto p-4">
+          <Card>
+            <template #title>
+              生成条件
+            </template>
+            <template #content>
+              <div class="grid gap-4">
+                <div class="grid gap-2">
+                  <label class="text-sm font-medium">生成数量</label>
+                  <InputText
+                    :model-value="String(generatorOptions.count)"
+                    type="number"
+                    min="1"
+                    max="50"
+                    placeholder="1 - 50"
+                    @update:model-value="handleCountChange"
+                  />
+                </div>
+
+                <div class="grid gap-2">
+                  <label class="text-sm font-medium">性别</label>
+                  <Select
+                    :model-value="generatorOptions.gender"
+                    :options="genderOptions"
+                    option-label="label"
+                    option-value="value"
+                    placeholder="随机"
+                    @update:model-value="handleGenderChange"
+                  />
+                </div>
+
+                <div class="grid gap-2">
+                  <label class="text-sm font-medium">出生日期</label>
+                  <div class="grid gap-3 sm:grid-cols-3">
+                    <Select
+                      :model-value="generatorOptions.birthYear"
+                      :options="yearOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="年份"
+                      show-clear
+                      @update:model-value="handleBirthYearChange"
+                    />
+                    <Select
+                      :model-value="generatorOptions.birthMonth"
+                      :options="monthOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="月份"
+                      show-clear
+                      @update:model-value="handleBirthMonthChange"
+                    />
+                    <Select
+                      :model-value="generatorOptions.birthDay"
+                      :options="dayOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="日期"
+                      show-clear
+                      :disabled="!dayOptions.length"
+                      @update:model-value="handleBirthDayChange"
+                    />
+                  </div>
+                </div>
+
+                <div class="grid gap-2">
+                  <label class="text-sm font-medium">省市区</label>
+                  <div class="grid gap-3">
+                    <Select
+                      :model-value="generatorOptions.provinceCode"
+                      :options="provinceOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="省份"
+                      show-clear
+                      filter
+                      @update:model-value="handleProvinceChange"
+                    />
+                    <Select
+                      :model-value="generatorOptions.cityCode"
+                      :options="cityOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="城市"
+                      show-clear
+                      filter
+                      :disabled="!generatorOptions.provinceCode"
+                      @update:model-value="handleCityChange"
+                    />
+                    <Select
+                      :model-value="generatorOptions.districtCode"
+                      :options="districtOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="区县"
+                      show-clear
+                      filter
+                      :disabled="!generatorOptions.provinceCode"
+                      @update:model-value="handleDistrictChange"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  label="重置条件"
+                  outlined
+                  @click="handleResetGenerator"
+                />
+              </div>
+            </template>
+          </Card>
+
+          <Card>
+            <template #title>
+              字段显示与排序
+            </template>
+            <template #content>
+              <VueDraggable
+                v-model="draggableFieldConfigs"
+                class="flex flex-col gap-2"
+                handle=".field-drag-handle"
+                :animation="150"
+              >
+                <div
+                  v-for="field in draggableFieldConfigs"
+                  :key="field.key"
+                  class="flex items-center justify-between gap-3 rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 dark:border-surface-700 dark:bg-surface-900"
+                >
+                  <label class="flex min-w-0 flex-1 items-center gap-3">
+                    <Checkbox
+                      :model-value="field.enabled"
+                      binary
+                      @update:model-value="handleFieldEnabledChange(field.key, $event)"
+                    />
+                    <span class="truncate text-sm">{{ field.label }}</span>
+                  </label>
+                  <button
+                    type="button"
+                    class="field-drag-handle inline-flex h-8 w-8 cursor-move items-center justify-center rounded-md text-surface-500 transition hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+                    aria-label="拖拽排序"
+                    title="拖拽排序"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <circle cx="5" cy="4" r="1.25" />
+                      <circle cx="5" cy="8" r="1.25" />
+                      <circle cx="5" cy="12" r="1.25" />
+                      <circle cx="11" cy="4" r="1.25" />
+                      <circle cx="11" cy="8" r="1.25" />
+                      <circle cx="11" cy="12" r="1.25" />
+                    </svg>
+                  </button>
+                </div>
+              </VueDraggable>
+            </template>
+            <template #footer>
+              <div class="flex flex-wrap gap-2 pt-4">
+                <Button
+                  label="恢复默认字段"
+                  text
+                  @click="handleResetFields"
+                />
+                <Button
+                  label="恢复列宽"
+                  text
+                  @click="handleResetColumnWidths"
+                />
+              </div>
+            </template>
+          </Card>
+        </div>
+      </aside>
+
+      <main class="min-w-0 flex-1 px-3 py-3 md:px-4">
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-surface-200 bg-surface-0 text-surface-600 transition hover:bg-surface-100 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+              :aria-label="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
+              :title="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
+              @click="toggleSidebar"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M3 4.75A1.75 1.75 0 0 1 4.75 3h10.5A1.75 1.75 0 0 1 17 4.75v10.5A1.75 1.75 0 0 1 15.25 17H4.75A1.75 1.75 0 0 1 3 15.25V4.75Zm4.5-.25h-2.75A.25.25 0 0 0 4.5 4.75v10.5c0 .138.112.25.25.25H7.5V4.5Zm1.5 11h6.25a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H9v11Z" />
+              </svg>
+            </button>
+
+            <Button
+              :outlined="activeTab !== 'generate'"
+              label="生成"
+              @click="store.setActiveTab('generate')"
+            />
+            <Button
+              :outlined="activeTab !== 'favorites'"
+              label="收藏"
+              @click="store.setActiveTab('favorites')"
+            />
+            <Button
+              v-if="activeTab === 'generate'"
+              label="生成资料"
+              :loading="isGenerating"
+              @click="handleGenerate"
+            />
+          </div>
+
+          <div class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-sm dark:border-surface-700 dark:bg-surface-900">
+            <div class="overflow-x-auto">
+              <table class="min-w-full table-fixed border-collapse text-sm">
+                <thead class="bg-surface-100 dark:bg-surface-800">
+                  <tr>
+                    <th
+                      v-for="field in visibleFieldConfigs"
+                      :key="field.key"
+                      :style="getColumnStyle(field.key)"
+                      class="group relative border-b border-surface-200 px-3 py-2 text-left font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200"
+                    >
+                      <div class="truncate pr-3">
+                        {{ field.label }}
+                      </div>
+                      <button
+                        type="button"
+                        class="absolute right-0 top-0 h-full w-2 cursor-col-resize opacity-0 transition group-hover:opacity-100"
+                        aria-label="调整列宽"
+                        title="调整列宽"
+                        @mousedown="startColumnResize($event, field.key)"
+                      />
+                    </th>
+                    <th
+                      :style="getColumnStyle('actions')"
+                      class="group sticky right-0 z-10 border-b border-surface-200 bg-surface-100 px-3 py-2 text-left font-medium text-surface-700 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+                    >
+                      <div class="truncate pr-3">
+                        操作
+                      </div>
+                      <button
+                        type="button"
+                        class="absolute right-0 top-0 h-full w-2 cursor-col-resize opacity-0 transition group-hover:opacity-100"
+                        aria-label="调整操作列宽"
+                        title="调整操作列宽"
+                        @mousedown="startColumnResize($event, 'actions')"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!currentRows.length">
+                    <td
+                      :colspan="visibleFieldConfigs.length + 1"
+                      class="px-4 py-10 text-center text-surface-500 dark:text-surface-400"
+                    >
+                      {{ activeTab === 'generate' ? '还没有生成结果，请点击“生成资料”。' : '还没有收藏记录。' }}
+                    </td>
+                  </tr>
+
+                  <tr
+                    v-for="row in currentRows"
+                    :key="row.idCard"
+                    class="align-top odd:bg-surface-0 even:bg-surface-50/70 dark:odd:bg-surface-900 dark:even:bg-surface-900/60"
+                  >
+                    <td
+                      v-for="field in visibleFieldConfigs"
+                      :key="`${row.idCard}-${field.key}`"
+                      :style="getColumnStyle(field.key)"
+                      class="border-b border-surface-200 px-3 py-2 text-surface-700 dark:border-surface-700 dark:text-surface-100"
+                    >
+                      <button
+                        type="button"
+                        class="block w-full overflow-hidden text-ellipsis whitespace-nowrap rounded px-1 py-1 text-left transition hover:bg-primary-50 hover:text-primary-700 dark:hover:bg-primary/15 dark:hover:text-primary-300"
+                        :title="getFieldValue(row, field.key)"
+                        @click="handleCopyCell(getFieldValue(row, field.key), field.label)"
+                      >
+                        {{ getFieldValue(row, field.key) }}
+                      </button>
+                    </td>
+                    <td
+                      :style="getColumnStyle('actions')"
+                      class="sticky right-0 z-10 border-b border-surface-200 bg-surface-0 px-3 py-2 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-surface-900"
+                    >
+                      <div class="flex min-w-0 flex-wrap gap-2">
+                        <div class="relative">
+                          <Button
+                            :label="copyActionLabel"
+                            size="small"
+                            outlined
+                            @click="toggleCopyMenu($event, row.idCard)"
+                          />
+                          <Menu
+                            :ref="setCopyMenuRef(row.idCard)"
+                            :model="buildCopyMenuItems(row)"
+                            popup
+                          />
+                        </div>
+                        <Button
+                          v-if="activeTab === 'generate'"
+                          :label="store.isFavorite(row.idCard) ? '取消收藏' : '收藏'"
+                          size="small"
+                          @click="handleToggleFavorite(row)"
+                        />
+                        <Button
+                          v-else
+                          label="移除"
+                          size="small"
+                          @click="store.removeFavorite(row.idCard)"
+                        />
+                      </div>
+                      <div v-if="activeTab === 'favorites'" class="mt-2">
+                        <Textarea
+                          :model-value="getFavoriteNote(row)"
+                          rows="2"
+                          auto-resize
+                          placeholder="备注"
+                          @update:model-value="handleFavoriteNoteChange(row.idCard, $event)"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-    <Button class="active:scale-95" @click="hello">
-      这是一个测试按钮哦~
-    </Button>
-    <Input v-model="inp" />
-    <i-mdi-eye class="size-4" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import type {
+  ExportFormat,
+  FavoriteIdentityRecord,
+  GeneratorOptions,
+  IdentityColumnKey,
+  IdentityFieldConfig,
+  IdentityFieldKey,
+  IdentityGenderOption,
+  IdentityRecord,
+  SelectOption,
+} from '@/utils/identity-generator'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, ref, watch } from 'vue'
+import { VueDraggable } from 'vue-draggable-plus'
+import { toast } from 'vue-sonner'
+import { useIdentityGeneratorStore } from '@/stores/identity-generator'
+import {
+  createDayOptions,
+  createMonthOptions,
+  createYearOptions,
+  getEnabledFieldConfigs,
+  getFieldValue,
+  listCityOptions,
+  listDistrictOptions,
+  listProvinceOptions,
+  serializeRows,
+} from '@/utils/identity-generator'
+import Button from '@/volt/Button.vue'
+import Card from '@/volt/Card.vue'
+import Checkbox from '@/volt/Checkbox.vue'
+import InputText from '@/volt/InputText.vue'
+import Menu from '@/volt/Menu.vue'
+import Select from '@/volt/Select.vue'
+import Textarea from '@/volt/Textarea.vue'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Hello } from '@/entity/hello.ts'
+const store = useIdentityGeneratorStore()
+const { activeTab, columnWidths, favorites, fieldConfigs, generatedRows, generatorOptions, isGenerating } = storeToRefs(store)
 
-const inp = ref('')
+const provinceOptions = ref<SelectOption<string>[]>([])
+const cityOptions = ref<SelectOption<string>[]>([])
+const districtOptions = ref<SelectOption<string>[]>([])
+const isSidebarOpen = ref(false)
+const copyMenuRefs = ref<Record<string, InstanceType<typeof Menu> | null>>({})
+const resizingColumnKey = ref<IdentityColumnKey | null>(null)
+const resizeStartX = ref(0)
+const resizeStartWidth = ref(0)
 
-async function hello() {
-  const hello = new Hello('abc')
-  console.warn(hello.s)
+const genderOptions: SelectOption<IdentityGenderOption>[] = [
+  { label: '随机', value: 'random' },
+  { label: '男', value: 'male' },
+  { label: '女', value: 'female' },
+]
+
+const copyActionLabel = '复制'
+
+const yearOptions = createYearOptions()
+const monthOptions = createMonthOptions()
+
+const dayOptions = computed(() => {
+  return createDayOptions(generatorOptions.value.birthYear, generatorOptions.value.birthMonth)
+})
+
+const visibleFieldConfigs = computed(() => {
+  return getEnabledFieldConfigs(fieldConfigs.value)
+})
+
+const draggableFieldConfigs = computed({
+  get() {
+    return fieldConfigs.value
+  },
+  set(value: IdentityFieldConfig[]) {
+    store.replaceFieldConfigs(value)
+  },
+})
+
+const currentRows = computed<Array<IdentityRecord | FavoriteIdentityRecord>>(() => {
+  if (activeTab.value === 'generate') {
+    return generatedRows.value
+  }
+
+  return favorites.value
+})
+
+watch(
+  () => {
+    return generatorOptions.value.provinceCode
+  },
+  async (provinceCode) => {
+    cityOptions.value = await listCityOptions(provinceCode)
+    districtOptions.value = await listDistrictOptions(provinceCode, generatorOptions.value.cityCode)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => {
+    return generatorOptions.value.cityCode
+  },
+  async (cityCode) => {
+    districtOptions.value = await listDistrictOptions(generatorOptions.value.provinceCode, cityCode)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => {
+    return [generatorOptions.value.birthYear, generatorOptions.value.birthMonth]
+  },
+  () => {
+    syncBirthDay()
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  provinceOptions.value = await listProvinceOptions()
+})
+
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
+
+function setCopyMenuRef(idCard: string) {
+  return (instance: InstanceType<typeof Menu> | null) => {
+    copyMenuRefs.value[idCard] = instance
+  }
+}
+
+function toggleCopyMenu(event: Event, idCard: string) {
+  copyMenuRefs.value[idCard]?.toggle(event)
+}
+
+function buildCopyMenuItems(row: IdentityRecord | FavoriteIdentityRecord) {
+  return [
+    {
+      label: '复制 JSON',
+      command: () => {
+        void handleCopyRowWithFormat(row, 'json')
+      },
+    },
+    {
+      label: '复制 Excel(TSV)',
+      command: () => {
+        void handleCopyRowWithFormat(row, 'tsv')
+      },
+    },
+    {
+      label: '复制 CSV',
+      command: () => {
+        void handleCopyRowWithFormat(row, 'csv')
+      },
+    },
+  ]
+}
+
+function syncBirthDay() {
+  if (!generatorOptions.value.birthDay) {
+    return
+  }
+
+  const validDays = createDayOptions(generatorOptions.value.birthYear, generatorOptions.value.birthMonth)
+  const exists = validDays.some((item) => {
+    return item.value === generatorOptions.value.birthDay
+  })
+
+  if (!exists) {
+    store.updateGeneratorOptions({ birthDay: null })
+  }
+}
+
+function handleCountChange(value: string | number | undefined) {
+  const parsed = Number(value)
+  if (Number.isNaN(parsed)) {
+    store.setCount(1)
+    return
+  }
+
+  store.setCount(parsed)
+}
+
+function handleGenderChange(value: IdentityGenderOption) {
+  store.updateGeneratorOptions({ gender: value })
+}
+
+function handleBirthYearChange(value: GeneratorOptions['birthYear']) {
+  store.updateGeneratorOptions({ birthYear: value })
+}
+
+function handleBirthMonthChange(value: GeneratorOptions['birthMonth']) {
+  store.updateGeneratorOptions({ birthMonth: value })
+}
+
+function handleBirthDayChange(value: GeneratorOptions['birthDay']) {
+  store.updateGeneratorOptions({ birthDay: value })
+}
+
+function handleProvinceChange(value: GeneratorOptions['provinceCode']) {
+  store.setProvinceCode(value)
+}
+
+function handleCityChange(value: GeneratorOptions['cityCode']) {
+  store.setCityCode(value)
+}
+
+function handleDistrictChange(value: GeneratorOptions['districtCode']) {
+  store.setDistrictCode(value)
+}
+
+function handleFieldEnabledChange(key: IdentityFieldKey, value: boolean) {
+  store.setFieldEnabled(key, value)
+}
+
+function getColumnStyle(key: IdentityColumnKey) {
+  const width = columnWidths.value[key]
+  return {
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    maxWidth: `${width}px`,
+  }
+}
+
+function startColumnResize(event: MouseEvent, key: IdentityColumnKey) {
+  event.preventDefault()
+  resizingColumnKey.value = key
+  resizeStartX.value = event.clientX
+  resizeStartWidth.value = columnWidths.value[key]
+  window.addEventListener('mousemove', handleColumnResize)
+  window.addEventListener('mouseup', stopColumnResize)
+}
+
+function handleColumnResize(event: MouseEvent) {
+  if (!resizingColumnKey.value) {
+    return
+  }
+
+  const nextWidth = resizeStartWidth.value + event.clientX - resizeStartX.value
+  store.setColumnWidth(resizingColumnKey.value, clampColumnWidth(resizingColumnKey.value, nextWidth))
+}
+
+function stopColumnResize() {
+  resizingColumnKey.value = null
+  window.removeEventListener('mousemove', handleColumnResize)
+  window.removeEventListener('mouseup', stopColumnResize)
+}
+
+function clampColumnWidth(key: IdentityColumnKey, width: number) {
+  if (key === 'gender') {
+    return Math.max(52, width)
+  }
+
+  if (key === 'name') {
+    return Math.max(64, width)
+  }
+
+  if (key === 'birthDate') {
+    return Math.max(88, width)
+  }
+
+  if (key === 'postalCode') {
+    return Math.max(72, width)
+  }
+
+  if (key === 'phone') {
+    return Math.max(96, width)
+  }
+
+  if (key === 'idCard') {
+    return Math.max(120, width)
+  }
+
+  if (key === 'email') {
+    return Math.max(110, width)
+  }
+
+  if (key === 'address') {
+    return Math.max(96, width)
+  }
+
+  if (key === 'actions') {
+    return Math.max(108, width)
+  }
+
+  return Math.max(52, width)
+}
+
+async function handleGenerate() {
+  await store.generateRows()
+  toast.success(`已生成 ${generatedRows.value.length} 条资料`)
+}
+
+function handleResetGenerator() {
+  store.resetGeneratorOptions()
+  toast.success('已重置生成条件')
+}
+
+function handleResetFields() {
+  store.resetFieldConfigs()
+  toast.success('已恢复默认字段顺序')
+}
+
+function handleResetColumnWidths() {
+  store.resetColumnWidths()
+  toast.success('已恢复默认列宽')
+}
+
+function handleToggleFavorite(row: IdentityRecord | FavoriteIdentityRecord) {
+  if (store.isFavorite(row.idCard)) {
+    store.removeFavorite(row.idCard)
+    toast.success(`已取消收藏 ${row.name}`)
+    return
+  }
+
+  store.addFavorite(row)
+  toast.success(`已收藏 ${row.name}`)
+}
+
+function handleFavoriteNoteChange(idCard: string, value: string | undefined) {
+  store.updateFavoriteNote(idCard, value ?? '')
+}
+
+async function handleCopyCell(value: string, label: string) {
+  await writeText(value)
+  toast.success(`已复制${label}`)
+}
+
+async function handleCopyRowWithFormat(row: IdentityRecord | FavoriteIdentityRecord, format: ExportFormat) {
+  const text = serializeRows([row], fieldConfigs.value, format)
+  await writeText(text)
+  toast.success(`已复制 ${row.name} 的${getFormatName(format)}`)
+}
+
+async function writeText(value: string) {
+  await navigator.clipboard.writeText(value)
+}
+
+function getFavoriteNote(row: IdentityRecord | FavoriteIdentityRecord): string {
+  if ('note' in row) {
+    return row.note
+  }
+
+  return ''
+}
+
+function getFormatName(format: ExportFormat): string {
+  if (format === 'json') {
+    return ' JSON'
+  }
+
+  if (format === 'csv') {
+    return ' CSV'
+  }
+
+  return ' Excel(TSV)'
 }
 </script>

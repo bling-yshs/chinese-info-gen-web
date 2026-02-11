@@ -1,0 +1,833 @@
+import dayjs from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+
+dayjs.extend(customParseFormat)
+
+export type IdentityTab = 'generate' | 'favorites'
+export type IdentityGender = 'male' | 'female'
+export type IdentityGenderOption = IdentityGender | 'random'
+export type ExportFormat = 'json' | 'csv' | 'tsv'
+export type IdentityFieldKey
+  = | 'idCard'
+    | 'name'
+    | 'gender'
+    | 'birthDate'
+    | 'address'
+    | 'postalCode'
+    | 'phone'
+    | 'email'
+export type IdentityColumnKey = IdentityFieldKey | 'actions'
+export type IdentityColumnWidths = Record<IdentityColumnKey, number>
+
+export interface SelectOption<T = string | number> {
+  label: string
+  value: T
+}
+
+export interface IdentityFieldConfig {
+  key: IdentityFieldKey
+  label: string
+  enabled: boolean
+}
+
+export interface GeneratorOptions {
+  count: number
+  gender: IdentityGenderOption
+  birthYear: number | null
+  birthMonth: number | null
+  birthDay: number | null
+  provinceCode: string | null
+  cityCode: string | null
+  districtCode: string | null
+}
+
+export interface IdentityRecord {
+  uid: string
+  idCard: string
+  name: string
+  gender: '男' | '女'
+  birthDate: string
+  provinceCode: string
+  provinceName: string
+  cityCode: string
+  cityName: string
+  districtCode: string
+  districtName: string
+  address: string
+  postalCode: string
+  phone: string
+  email: string
+  createdAt: string
+}
+
+export interface FavoriteIdentityRecord extends IdentityRecord {
+  favoriteAt: string
+  note: string
+}
+
+interface LevelRoot {
+  code: string
+  name: string
+  province: string
+  children: LevelChild[]
+}
+
+interface LevelChild {
+  code: string
+  name: string
+  province: string
+  city: string
+  area?: string
+  children?: LevelChild[]
+}
+
+export interface ResolvedArea {
+  provinceCode: string
+  provinceName: string
+  cityCode: string
+  cityName: string
+  districtCode: string
+  districtName: string
+}
+
+export interface AreaDataset {
+  provinceOptions: SelectOption<string>[]
+  citiesByProvince: Record<string, SelectOption<string>[]>
+  districtsByProvince: Record<string, ResolvedArea[]>
+  districtsByCity: Record<string, ResolvedArea[]>
+  areaNameMap: Record<string, string>
+  allDistricts: ResolvedArea[]
+}
+
+const DEFAULT_FIELD_CONFIGS: IdentityFieldConfig[] = [
+  { key: 'idCard', label: '身份证', enabled: true },
+  { key: 'name', label: '姓名', enabled: true },
+  { key: 'gender', label: '性别', enabled: true },
+  { key: 'birthDate', label: '出生日期', enabled: true },
+  { key: 'address', label: '地址', enabled: true },
+  { key: 'postalCode', label: '邮编', enabled: true },
+  { key: 'phone', label: '手机号', enabled: true },
+  { key: 'email', label: '邮箱', enabled: true },
+]
+
+const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
+  count: 10,
+  gender: 'random',
+  birthYear: null,
+  birthMonth: null,
+  birthDay: null,
+  provinceCode: null,
+  cityCode: null,
+  districtCode: null,
+}
+
+const DEFAULT_COLUMN_WIDTHS: IdentityColumnWidths = {
+  idCard: 180,
+  name: 96,
+  gender: 84,
+  birthDate: 120,
+  address: 214,
+  postalCode: 96,
+  phone: 128,
+  email: 220,
+  actions: 150,
+}
+
+const ID_CARD_WEIGHTS = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+const ID_CARD_CHECK_CODES = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+const PHONE_PREFIXES = [
+  '130',
+  '131',
+  '132',
+  '133',
+  '134',
+  '135',
+  '136',
+  '137',
+  '138',
+  '139',
+  '147',
+  '150',
+  '151',
+  '152',
+  '153',
+  '155',
+  '156',
+  '157',
+  '158',
+  '159',
+  '166',
+  '171',
+  '172',
+  '173',
+  '175',
+  '176',
+  '177',
+  '178',
+  '180',
+  '181',
+  '182',
+  '183',
+  '184',
+  '185',
+  '186',
+  '187',
+  '188',
+  '189',
+  '198',
+  '199',
+]
+const EMAIL_DOMAINS = ['qq.com', '163.com', 'gmail.com', 'outlook.com', 'hotmail.com']
+const STREET_NAMES = [
+  '人民路',
+  '解放路',
+  '建设路',
+  '和平路',
+  '中山路',
+  '新华路',
+  '长安街',
+  '朝阳路',
+  '幸福街',
+  '文化路',
+  '青年路',
+  '振兴路',
+  '兴业街',
+  '康乐路',
+  '锦绣路',
+  '学府路',
+]
+const SURNAMES = [
+  '王',
+  '李',
+  '张',
+  '刘',
+  '陈',
+  '杨',
+  '黄',
+  '赵',
+  '吴',
+  '周',
+  '徐',
+  '孙',
+  '马',
+  '朱',
+  '胡',
+  '郭',
+  '何',
+  '高',
+  '林',
+  '罗',
+  '郑',
+  '梁',
+  '谢',
+  '宋',
+  '唐',
+  '许',
+  '韩',
+  '冯',
+  '邓',
+  '曹',
+  '彭',
+  '曾',
+  '肖',
+  '田',
+  '董',
+  '袁',
+  '潘',
+  '于',
+  '蒋',
+  '蔡',
+  '余',
+  '杜',
+]
+const MALE_NAME_CHARS = [
+  '伟',
+  '强',
+  '磊',
+  '洋',
+  '勇',
+  '军',
+  '杰',
+  '涛',
+  '超',
+  '明',
+  '刚',
+  '平',
+  '峰',
+  '健',
+  '鑫',
+  '鹏',
+  '宇',
+  '浩',
+  '博',
+  '凯',
+  '俊',
+  '晨',
+  '翔',
+  '瑞',
+  '阳',
+  '诚',
+  '泽',
+  '昊',
+]
+const FEMALE_NAME_CHARS = [
+  '芳',
+  '娜',
+  '敏',
+  '静',
+  '丽',
+  '艳',
+  '娟',
+  '洁',
+  '琳',
+  '雪',
+  '颖',
+  '慧',
+  '婷',
+  '丹',
+  '倩',
+  '璐',
+  '怡',
+  '颖',
+  '欣',
+  '妍',
+  '彤',
+  '雅',
+  '琪',
+  '雯',
+  '可',
+  '瑶',
+  '菲',
+  '悦',
+]
+const EMAIL_NAME_PARTS = [
+  'sun',
+  'moon',
+  'river',
+  'forest',
+  'cloud',
+  'stone',
+  'light',
+  'green',
+  'snow',
+  'wind',
+]
+const MAX_GENERATE_COUNT = 50
+const MIN_BIRTH_YEAR = 1960
+const MAX_BIRTH_YEAR = dayjs().year() - 18
+
+let areaDatasetPromise: Promise<AreaDataset> | null = null
+
+export function createDefaultFieldConfigs(): IdentityFieldConfig[] {
+  return DEFAULT_FIELD_CONFIGS.map(item => ({ ...item }))
+}
+
+export function createDefaultGeneratorOptions(): GeneratorOptions {
+  return { ...DEFAULT_GENERATOR_OPTIONS }
+}
+
+export function createYearOptions(): SelectOption<number>[] {
+  const options: SelectOption<number>[] = []
+
+  for (let year = MAX_BIRTH_YEAR; year >= MIN_BIRTH_YEAR; year -= 1) {
+    options.push({
+      label: `${year}年`,
+      value: year,
+    })
+  }
+
+  return options
+}
+
+export function createMonthOptions(): SelectOption<number>[] {
+  const options: SelectOption<number>[] = []
+
+  for (let month = 1; month <= 12; month += 1) {
+    options.push({
+      label: `${month}月`,
+      value: month,
+    })
+  }
+
+  return options
+}
+
+export function createDayOptions(year: number | null, month: number | null): SelectOption<number>[] {
+  if (!year || !month) {
+    return []
+  }
+
+  const totalDays = dayjs(`${year}-${padNumber(month)}-01`).daysInMonth()
+  const options: SelectOption<number>[] = []
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    options.push({
+      label: `${day}日`,
+      value: day,
+    })
+  }
+
+  return options
+}
+
+export async function getAreaDataset(): Promise<AreaDataset> {
+  if (!areaDatasetPromise) {
+    areaDatasetPromise = loadAreaDataset()
+  }
+
+  return areaDatasetPromise
+}
+
+export async function listProvinceOptions(): Promise<SelectOption<string>[]> {
+  const dataset = await getAreaDataset()
+  return dataset.provinceOptions
+}
+
+export async function listCityOptions(provinceCode: string | null): Promise<SelectOption<string>[]> {
+  if (!provinceCode) {
+    return []
+  }
+
+  const dataset = await getAreaDataset()
+  return dataset.citiesByProvince[provinceCode] ?? []
+}
+
+export async function listDistrictOptions(
+  provinceCode: string | null,
+  cityCode: string | null,
+): Promise<SelectOption<string>[]> {
+  const dataset = await getAreaDataset()
+  const districts = getDistrictCandidates(dataset, provinceCode, cityCode)
+
+  return districts.map((district) => {
+    const label = cityCode || district.cityName === district.provinceName
+      ? district.districtName
+      : `${district.cityName} / ${district.districtName}`
+
+    return {
+      label,
+      value: district.districtCode,
+    }
+  })
+}
+
+export async function generateIdentityRows(options: GeneratorOptions): Promise<IdentityRecord[]> {
+  const dataset = await getAreaDataset()
+  const count = sanitizeCount(options.count)
+  const rows: IdentityRecord[] = []
+  const usedIdCards = new Set<string>()
+  let attempts = 0
+
+  while (rows.length < count && attempts < count * 30) {
+    const row = generateSingleIdentity(options, dataset)
+    attempts += 1
+
+    if (usedIdCards.has(row.idCard)) {
+      continue
+    }
+
+    if (!validateIdentityRecord(row)) {
+      continue
+    }
+
+    usedIdCards.add(row.idCard)
+    rows.push(row)
+  }
+
+  return rows
+}
+
+export function validateIdentityRecord(row: IdentityRecord): boolean {
+  if (!dayjs(row.birthDate, 'YYYY-MM-DD', true).isValid()) {
+    return false
+  }
+
+  if (!isValidIdCard(row.idCard)) {
+    return false
+  }
+
+  const genderCode = Number.parseInt(row.idCard[16] ?? '', 10)
+  if (Number.isNaN(genderCode)) {
+    return false
+  }
+
+  if (row.gender === '男' && genderCode % 2 === 0) {
+    return false
+  }
+
+  if (row.gender === '女' && genderCode % 2 !== 0) {
+    return false
+  }
+
+  if (row.idCard.slice(0, 6) !== row.districtCode) {
+    return false
+  }
+
+  if (row.idCard.slice(6, 14) !== row.birthDate.replaceAll('-', '')) {
+    return false
+  }
+
+  if (!row.address.startsWith(row.provinceName) || !row.address.includes(row.districtName)) {
+    return false
+  }
+
+  return true
+}
+
+export function getEnabledFieldConfigs(fieldConfigs: IdentityFieldConfig[]): IdentityFieldConfig[] {
+  return fieldConfigs.filter(item => item.enabled)
+}
+
+export function getFieldValue(row: IdentityRecord | FavoriteIdentityRecord, key: IdentityFieldKey): string {
+  return String(row[key] ?? '')
+}
+
+export function toJsonText(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+): string {
+  const enabledFields = getEnabledFieldConfigs(fieldConfigs)
+  const payload = rows.map((row) => {
+    const result = {} as Record<string, string>
+
+    for (const field of enabledFields) {
+      result[field.label] = getFieldValue(row, field.key)
+    }
+
+    return result
+  })
+
+  return JSON.stringify(payload, null, 2)
+}
+
+export function toCsvText(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+): string {
+  return toDelimitedText(rows, fieldConfigs, ',')
+}
+
+export function toTsvText(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+): string {
+  return toDelimitedText(rows, fieldConfigs, '\t')
+}
+
+export function serializeRows(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+  format: ExportFormat,
+): string {
+  if (format === 'json') {
+    return toJsonText(rows, fieldConfigs)
+  }
+
+  if (format === 'csv') {
+    return toCsvText(rows, fieldConfigs)
+  }
+
+  return toTsvText(rows, fieldConfigs)
+}
+
+export function createFavoriteRow(row: IdentityRecord): FavoriteIdentityRecord {
+  return {
+    ...row,
+    favoriteAt: new Date().toISOString(),
+    note: '',
+  }
+}
+
+export function createDefaultColumnWidths(): IdentityColumnWidths {
+  return { ...DEFAULT_COLUMN_WIDTHS }
+}
+
+export function sanitizeCount(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_GENERATOR_OPTIONS.count
+  }
+
+  return Math.min(MAX_GENERATE_COUNT, Math.max(1, Math.trunc(value)))
+}
+
+function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset): IdentityRecord {
+  const area = resolveArea(options, dataset)
+  const birthDate = resolveBirthDate(options)
+  const gender = resolveGender(options.gender)
+  const idCard = buildIdCard(area.districtCode, birthDate.compact, gender)
+  const name = buildName(gender)
+  const address = buildAddress(area)
+  const postalCode = buildPostalCode(area.districtCode)
+  const phone = buildPhoneNumber()
+  const email = buildEmail(name, idCard)
+
+  return {
+    uid: crypto.randomUUID(),
+    idCard,
+    name,
+    gender: gender === 'male' ? '男' : '女',
+    birthDate: birthDate.display,
+    provinceCode: area.provinceCode,
+    provinceName: area.provinceName,
+    cityCode: area.cityCode,
+    cityName: area.cityName,
+    districtCode: area.districtCode,
+    districtName: area.districtName,
+    address,
+    postalCode,
+    phone,
+    email,
+    createdAt: new Date().toISOString(),
+  }
+}
+
+function resolveArea(options: GeneratorOptions, dataset: AreaDataset): ResolvedArea {
+  if (options.districtCode) {
+    const district = dataset.allDistricts.find(item => item.districtCode === options.districtCode)
+    if (district) {
+      return district
+    }
+  }
+
+  const candidates = getDistrictCandidates(dataset, options.provinceCode, options.cityCode)
+  return pickOne(candidates)
+}
+
+function getDistrictCandidates(
+  dataset: AreaDataset,
+  provinceCode: string | null,
+  cityCode: string | null,
+): ResolvedArea[] {
+  if (cityCode) {
+    const cityDistricts = dataset.districtsByCity[cityCode] ?? []
+    if (cityDistricts.length > 0) {
+      return cityDistricts
+    }
+  }
+
+  if (provinceCode) {
+    const provinceDistricts = dataset.districtsByProvince[provinceCode] ?? []
+    if (provinceDistricts.length > 0) {
+      return provinceDistricts
+    }
+  }
+
+  return dataset.allDistricts
+}
+
+function resolveBirthDate(options: GeneratorOptions): { compact: string, display: string } {
+  const year = options.birthYear ?? randomInt(MIN_BIRTH_YEAR, MAX_BIRTH_YEAR)
+  const month = options.birthMonth ?? randomInt(1, 12)
+  const totalDays = dayjs(`${year}-${padNumber(month)}-01`).daysInMonth()
+  const day = options.birthDay ?? randomInt(1, totalDays)
+  const compact = `${year}${padNumber(month)}${padNumber(day)}`
+
+  if (!dayjs(compact, 'YYYYMMDD', true).isValid()) {
+    throw new Error('生成了非法生日')
+  }
+
+  return {
+    compact,
+    display: `${year}-${padNumber(month)}-${padNumber(day)}`,
+  }
+}
+
+function resolveGender(gender: IdentityGenderOption): IdentityGender {
+  if (gender === 'male' || gender === 'female') {
+    return gender
+  }
+
+  return Math.random() > 0.5 ? 'male' : 'female'
+}
+
+function buildIdCard(districtCode: string, birthday: string, gender: IdentityGender): string {
+  const sequenceCode = buildSequenceCode(gender)
+  const base = `${districtCode}${birthday}${sequenceCode}`
+  return `${base}${calculateCheckCode(base)}`
+}
+
+function buildSequenceCode(gender: IdentityGender): string {
+  const body = randomInt(0, 99).toString().padStart(2, '0')
+  const lastDigitPool = gender === 'male' ? ['1', '3', '5', '7', '9'] : ['0', '2', '4', '6', '8']
+  return `${body}${pickOne(lastDigitPool)}`
+}
+
+function calculateCheckCode(baseCode: string): string {
+  const sum = baseCode
+    .split('')
+    .reduce((total, current, index) => total + Number(current) * ID_CARD_WEIGHTS[index], 0)
+
+  return ID_CARD_CHECK_CODES[sum % 11]
+}
+
+function isValidIdCard(idCard: string): boolean {
+  if (!/^\d{17}[0-9X]$/.test(idCard)) {
+    return false
+  }
+
+  return calculateCheckCode(idCard.slice(0, 17)) === idCard[17]
+}
+
+function buildName(gender: IdentityGender): string {
+  const surname = pickOne(SURNAMES)
+  const pool = gender === 'male' ? MALE_NAME_CHARS : FEMALE_NAME_CHARS
+  const givenNameLength = Math.random() > 0.45 ? 2 : 1
+  let givenName = ''
+
+  for (let index = 0; index < givenNameLength; index += 1) {
+    givenName += pickOne(pool)
+  }
+
+  return `${surname}${givenName}`
+}
+
+function buildAddress(area: ResolvedArea): string {
+  const road = pickOne(STREET_NAMES)
+  const lane = randomInt(1, 999)
+  const room = randomInt(101, 2802)
+  const cityPart = area.cityName === area.provinceName ? '' : area.cityName
+
+  return `${area.provinceName}${cityPart}${area.districtName}${road}${lane}号${room}室`
+}
+
+function buildPostalCode(districtCode: string): string {
+  return `${districtCode.slice(0, 3)}${randomInt(0, 999).toString().padStart(3, '0')}`
+}
+
+function buildPhoneNumber(): string {
+  return `${pickOne(PHONE_PREFIXES)}${randomInt(0, 99999999).toString().padStart(8, '0')}`
+}
+
+function buildEmail(name: string, idCard: string): string {
+  const safeName = name.replaceAll(/[^\u4E00-\u9FA5]/g, '')
+  const prefix = `${pickOne(EMAIL_NAME_PARTS)}${safeName.length}${idCard.slice(-4)}`.toLowerCase()
+  return `${prefix}@${pickOne(EMAIL_DOMAINS)}`
+}
+
+async function loadAreaDataset(): Promise<AreaDataset> {
+  const response = await fetch(new URL('../assets/level.json', import.meta.url))
+
+  if (!response.ok) {
+    throw new Error('地区数据加载失败')
+  }
+
+  const roots = await response.json() as LevelRoot[]
+  return buildAreaDatasetFromLevelTree(roots)
+}
+
+function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
+  const areaNameMap = {} as Record<string, string>
+  const provinceOptions: SelectOption<string>[] = []
+  const citiesByProvince = {} as Record<string, SelectOption<string>[]>
+  const districtsByProvince = {} as Record<string, ResolvedArea[]>
+  const districtsByCity = {} as Record<string, ResolvedArea[]>
+  const allDistricts: ResolvedArea[] = []
+
+  for (const province of roots) {
+    areaNameMap[province.code] = province.name
+    provinceOptions.push({
+      label: province.name,
+      value: province.code,
+    })
+
+    const cityOptions: SelectOption<string>[] = []
+    const provinceDistricts: ResolvedArea[] = []
+
+    for (const city of province.children ?? []) {
+      areaNameMap[city.code] = city.name
+      cityOptions.push({
+        label: city.name,
+        value: city.code,
+      })
+
+      const cityDistricts: ResolvedArea[] = []
+
+      for (const district of city.children ?? []) {
+        areaNameMap[district.code] = district.name
+
+        const resolved = {
+          provinceCode: province.code,
+          provinceName: province.name,
+          cityCode: city.code,
+          cityName: city.name,
+          districtCode: district.code,
+          districtName: district.name,
+        }
+
+        cityDistricts.push(resolved)
+        provinceDistricts.push(resolved)
+        allDistricts.push(resolved)
+      }
+
+      districtsByCity[city.code] = cityDistricts
+    }
+
+    citiesByProvince[province.code] = cityOptions
+    districtsByProvince[province.code] = provinceDistricts
+  }
+
+  sortAreaCollections(citiesByProvince, districtsByProvince, districtsByCity)
+
+  return {
+    provinceOptions,
+    citiesByProvince,
+    districtsByProvince,
+    districtsByCity,
+    areaNameMap,
+    allDistricts,
+  }
+}
+
+function sortAreaCollections(
+  citiesByProvince: Record<string, SelectOption<string>[]>,
+  districtsByProvince: Record<string, ResolvedArea[]>,
+  districtsByCity: Record<string, ResolvedArea[]>,
+): void {
+  for (const provinceCode of Object.keys(citiesByProvince)) {
+    citiesByProvince[provinceCode].sort((left, right) => left.value.localeCompare(right.value))
+  }
+
+  for (const provinceCode of Object.keys(districtsByProvince)) {
+    districtsByProvince[provinceCode].sort((left, right) => left.districtCode.localeCompare(right.districtCode))
+  }
+
+  for (const cityCode of Object.keys(districtsByCity)) {
+    districtsByCity[cityCode].sort((left, right) => left.districtCode.localeCompare(right.districtCode))
+  }
+}
+
+function escapeDelimitedCell(value: string, delimiter: string): string {
+  const normalized = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+  if (!normalized.includes(delimiter) && !normalized.includes('"') && !normalized.includes('\n')) {
+    return normalized
+  }
+
+  return `"${normalized.replaceAll('"', '""')}"`
+}
+
+function toDelimitedText(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+  delimiter: string,
+): string {
+  const enabledFields = getEnabledFieldConfigs(fieldConfigs)
+  const lines = rows.map((row) => {
+    return enabledFields
+      .map(field => escapeDelimitedCell(getFieldValue(row, field.key), delimiter))
+      .join(delimiter)
+  })
+
+  return lines.join('\n')
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function pickOne<T>(items: T[]): T {
+  return items[randomInt(0, items.length - 1)]
+}
+
+function padNumber(value: number): string {
+  return value.toString().padStart(2, '0')
+}

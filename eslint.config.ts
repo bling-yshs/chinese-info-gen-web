@@ -27,6 +27,7 @@ export default antfu({
     '**/dist-ssr/**',
     '**/coverage/**',
     'src/components/**',
+    'src/volt/**',
     'src/lib/**',
     'src-tauri/**',
     'package.json',

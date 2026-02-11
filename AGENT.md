@@ -1,24 +1,29 @@
 ## 依赖规范
 
-- 使用 vite,vue3,tailwind css,shadcn-vue,vue-router,pinia,dayjs
+- 使用 vite,vue3,tailwind css,primevue(volt),vue-router,pinia,dayjs
 
 ## 编辑规范
 
 - 编辑完代码后，必须立刻运行命令 `pnpm lint` 来进行代码格式化
+- 本项目还没有上线，你可以尽情发挥修改代码，不需要考虑旧数据的兼容
 
 ## UI 组件规范
 
-- 所有组件必须使用 shadcn 的组件
-- 添加组件请运行命令，比如 `pnpx shadcn-vue@latest add button` 来添加按钮组件
+- 所有组件必须使用 Volt 的组件
+- 添加组件请运行命令，比如 `pnpx volt-vue add Button` 来添加按钮组件
 - 需要添加什么组件，在添加之前使用 context7 mcp 进行查询
 
 ## 格式规范
 
 - 代码缩进两格
-- script 内的函数请优先使用 function 而不是 `const xxx = () =>` 的箭头函数
+- script 内的函数请优先使用 function ，禁止使用 `const xxx = () =>` 的箭头函数
 
 ## 页面结构规范
 
 - 每个页面单独存放在 `views` 目录下的独立文件夹中
 - 页面文件命名格式为：`{页面名}-index.vue`
 - 例如：home 页面存放在 `views/home/home-index.vue`，foo 页面存放在 `views/foo/foo-index.vue`
+
+需求：
+我现在想开发一个网页，功能是生成随机虚拟的中国的身份证、中国的姓名、性别、出生点月、地址、邮政编码、手机号、邮箱。并且方便复制的网站。我设想的是网页是一个大的列表，每一行都是一条数据，用户可以自由选择数据的排列顺序和需要哪些数据，比如是身份证在前还是姓名在前，需不需要生成邮箱、邮件编码，都可以自主控制 然后点击数据可以直接复制，或者右上角有个下拉框按钮，可以复制为json，csv，excel(\t分割)等。然后还可以收藏和对数据备注，有个切换tab可以切换生成页面和收藏页面。 然后用户可以指定性别和出生年月日，省市区。
+身份证、性别、出生年月。之间应该保持逻辑闭环。也就是生成的身份证要和这些信息要对的上。
