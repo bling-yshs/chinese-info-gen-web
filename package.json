@@ -31,7 +31,7 @@
     "@tsconfig/node24": "^24.0.1",
     "@types/node": "^24.6.0",
     "@vue/tsconfig": "^0.8.1",
-    "@typescript/native-preview": "*",
+    "@typescript/native-preview": "7.0.0-dev.20260308.1",
     "vite": "^8.0.0-beta.4",
     "vue": "^3.5.22",
     "vue-tsc": "^3.1.0",
