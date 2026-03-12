@@ -68,17 +68,18 @@ export interface FavoriteIdentityRecord extends IdentityRecord {
 interface LevelRoot {
   code: string
   name: string
-  province: string
-  children: LevelChild[]
+  children: LevelRootChild[]
 }
 
-interface LevelChild {
+interface LevelRootChild {
   code: string
   name: string
-  province: string
-  city: string
-  area?: string
-  children?: LevelChild[]
+  children: LevelChildChild[]
+}
+
+interface LevelChildChild {
+  code: string
+  name: string
 }
 
 export interface ResolvedArea {
@@ -724,20 +725,23 @@ function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
   const allDistricts: ResolvedArea[] = []
 
   for (const province of roots) {
-    areaNameMap[province.code] = province.name
+    const provinceCode = normalizeProvinceCode(province.code)
+    areaNameMap[provinceCode] = province.name
     provinceOptions.push({
       label: province.name,
-      value: province.code,
+      value: provinceCode,
     })
 
     const cityOptions: SelectOption<string>[] = []
     const provinceDistricts: ResolvedArea[] = []
 
     for (const city of province.children ?? []) {
-      areaNameMap[city.code] = city.name
+      const cityCode = normalizeCityCode(city.code)
+      const cityName = normalizeCityName(province.name, city.name)
+      areaNameMap[cityCode] = cityName
       cityOptions.push({
-        label: city.name,
-        value: city.code,
+        label: cityName,
+        value: cityCode,
       })
 
       const cityDistricts: ResolvedArea[] = []
@@ -746,10 +750,10 @@ function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
         areaNameMap[district.code] = district.name
 
         const resolved = {
-          provinceCode: province.code,
+          provinceCode,
           provinceName: province.name,
-          cityCode: city.code,
-          cityName: city.name,
+          cityCode,
+          cityName,
           districtCode: district.code,
           districtName: district.name,
         }
@@ -759,11 +763,11 @@ function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
         allDistricts.push(resolved)
       }
 
-      districtsByCity[city.code] = cityDistricts
+      districtsByCity[cityCode] = cityDistricts
     }
 
-    citiesByProvince[province.code] = cityOptions
-    districtsByProvince[province.code] = provinceDistricts
+    citiesByProvince[provinceCode] = cityOptions
+    districtsByProvince[provinceCode] = provinceDistricts
   }
 
   sortAreaCollections(citiesByProvince, districtsByProvince, districtsByCity)
@@ -776,6 +780,30 @@ function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
     areaNameMap,
     allDistricts,
   }
+}
+
+function normalizeProvinceCode(code: string): string {
+  if (code.length === 2) {
+    return `${code}0000`
+  }
+
+  return code
+}
+
+function normalizeCityCode(code: string): string {
+  if (code.length === 4) {
+    return `${code}00`
+  }
+
+  return code
+}
+
+function normalizeCityName(provinceName: string, cityName: string): string {
+  if (cityName === '市辖区' || cityName === '县' || cityName === '省直辖县级行政区划') {
+    return provinceName
+  }
+
+  return cityName
 }
 
 function sortAreaCollections(

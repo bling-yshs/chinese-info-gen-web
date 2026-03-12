@@ -91,7 +91,7 @@
                       placeholder="城市"
                       show-clear
                       filter
-                      :disabled="!generatorOptions.provinceCode"
+                      :disabled="!generatorOptions.provinceCode || isCityAutoLocked"
                       @update:model-value="handleCityChange"
                     />
                     <Select
@@ -415,12 +415,33 @@ const currentRows = computed<Array<IdentityRecord | FavoriteIdentityRecord>>(() 
   return favorites.value
 })
 
+const isCityAutoLocked = computed(() => {
+  return Boolean(generatorOptions.value.provinceCode) && cityOptions.value.length === 1
+})
+
 watch(
   () => {
     return generatorOptions.value.provinceCode
   },
   async (provinceCode) => {
     cityOptions.value = await listCityOptions(provinceCode)
+
+    if (cityOptions.value.length === 1) {
+      const onlyCityCode = cityOptions.value[0]?.value ?? null
+      if (generatorOptions.value.cityCode !== onlyCityCode) {
+        store.setCityCode(onlyCityCode)
+      }
+    }
+    else if (generatorOptions.value.cityCode) {
+      const exists = cityOptions.value.some((item) => {
+        return item.value === generatorOptions.value.cityCode
+      })
+
+      if (!exists) {
+        store.setCityCode(null)
+      }
+    }
+
     districtOptions.value = await listDistrictOptions(provinceCode, generatorOptions.value.cityCode)
   },
   { immediate: true },
