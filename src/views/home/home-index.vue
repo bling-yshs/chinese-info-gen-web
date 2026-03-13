@@ -179,32 +179,35 @@
 
       <main class="min-w-0 flex-1 px-3 py-3 md:px-4">
         <div class="flex flex-col gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-surface-200 bg-surface-0 text-surface-600 transition hover:bg-surface-100 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
-              :aria-label="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
-              :title="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
-              @click="toggleSidebar"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M3 4.75A1.75 1.75 0 0 1 4.75 3h10.5A1.75 1.75 0 0 1 17 4.75v10.5A1.75 1.75 0 0 1 15.25 17H4.75A1.75 1.75 0 0 1 3 15.25V4.75Zm4.5-.25h-2.75A.25.25 0 0 0 4.5 4.75v10.5c0 .138.112.25.25.25H7.5V4.5Zm1.5 11h6.25a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H9v11Z" />
-              </svg>
-            </button>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-surface-200 bg-surface-0 text-surface-600 transition hover:bg-surface-100 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                :aria-label="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
+                :title="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
+                @click="toggleSidebar"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M3 4.75A1.75 1.75 0 0 1 4.75 3h10.5A1.75 1.75 0 0 1 17 4.75v10.5A1.75 1.75 0 0 1 15.25 17H4.75A1.75 1.75 0 0 1 3 15.25V4.75Zm4.5-.25h-2.75A.25.25 0 0 0 4.5 4.75v10.5c0 .138.112.25.25.25H7.5V4.5Zm1.5 11h6.25a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H9v11Z" />
+                </svg>
+              </button>
+
+              <Tabs :value="activeTab" class="min-w-0">
+                <TabList>
+                  <Tab value="generate" @click="store.setActiveTab('generate')">
+                    主页
+                  </Tab>
+                  <Tab value="favorites" @click="store.setActiveTab('favorites')">
+                    收藏
+                  </Tab>
+                </TabList>
+              </Tabs>
+            </div>
 
             <Button
-              :outlined="activeTab !== 'generate'"
-              label="生成"
-              @click="store.setActiveTab('generate')"
-            />
-            <Button
-              :outlined="activeTab !== 'favorites'"
-              label="收藏"
-              @click="store.setActiveTab('favorites')"
-            />
-            <Button
               v-if="activeTab === 'generate'"
-              label="生成资料"
+              label="生成数据"
               :loading="isGenerating"
               @click="handleGenerate"
             />
@@ -365,6 +368,9 @@ import Checkbox from '@/volt/Checkbox.vue'
 import InputText from '@/volt/InputText.vue'
 import Menu from '@/volt/Menu.vue'
 import Select from '@/volt/Select.vue'
+import Tab from '@/volt/Tab.vue'
+import TabList from '@/volt/TabList.vue'
+import Tabs from '@/volt/Tabs.vue'
 import Textarea from '@/volt/Textarea.vue'
 
 const store = useIdentityGeneratorStore()
