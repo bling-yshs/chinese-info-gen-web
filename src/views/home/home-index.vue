@@ -214,10 +214,47 @@
           </div>
 
           <div class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-sm dark:border-surface-700 dark:bg-surface-900">
+            <div class="flex items-center justify-between gap-3 border-b border-surface-200 px-3 py-2 dark:border-surface-700">
+              <div class="text-sm text-surface-600 dark:text-surface-300">
+                已选 {{ selectedRowCount }} 条
+              </div>
+              <div class="flex items-center gap-2">
+                <Button
+                  v-if="selectedRowCount"
+                  label="清空选择"
+                  text
+                  size="small"
+                  @click="clearCurrentSelection"
+                />
+                <div class="relative">
+                  <Button
+                    :label="selectedRowCount ? `复制已选(${selectedRowCount})` : '复制已选'"
+                    size="small"
+                    outlined
+                    :disabled="!selectedRowCount"
+                    @click="toggleBulkCopyMenu"
+                  />
+                  <Menu
+                    ref="bulkCopyMenuRef"
+                    :model="bulkCopyMenuItems"
+                    popup
+                  />
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="min-w-full table-fixed border-collapse text-sm">
                 <thead class="bg-surface-100 dark:bg-surface-800">
                   <tr>
+                    <th class="w-14 min-w-14 max-w-14 border-b border-surface-200 px-3 py-2 text-center font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200">
+                      <Checkbox
+                        binary
+                        :model-value="allCurrentRowsSelected"
+                        :indeterminate="isCurrentSelectionPartial"
+                        :disabled="!currentRows.length"
+                        @update:model-value="handleSelectAllRows(Boolean($event))"
+                      />
+                    </th>
                     <th
                       v-for="field in visibleFieldConfigs"
                       :key="field.key"
@@ -255,7 +292,7 @@
                 <tbody>
                   <tr v-if="!currentRows.length">
                     <td
-                      :colspan="visibleFieldConfigs.length + 1"
+                      :colspan="visibleFieldConfigs.length + 2"
                       class="px-4 py-10 text-center text-surface-500 dark:text-surface-400"
                     >
                       {{ activeTab === 'generate' ? '还没有生成结果，请点击“生成资料”。' : '还没有收藏记录。' }}
@@ -267,6 +304,13 @@
                     :key="row.idCard"
                     class="align-top odd:bg-surface-0 even:bg-surface-50/70 dark:odd:bg-surface-900 dark:even:bg-surface-900/60"
                   >
+                    <td class="border-b border-surface-200 px-3 py-2 text-center dark:border-surface-700">
+                      <Checkbox
+                        binary
+                        :model-value="isRowSelected(row.idCard)"
+                        @update:model-value="handleRowSelectionChange(row.idCard, Boolean($event))"
+                      />
+                    </td>
                     <td
                       v-for="field in visibleFieldConfigs"
                       :key="`${row.idCard}-${field.key}`"
@@ -380,10 +424,15 @@ const provinceOptions = ref<SelectOption<string>[]>([])
 const cityOptions = ref<SelectOption<string>[]>([])
 const districtOptions = ref<SelectOption<string>[]>([])
 const isSidebarOpen = ref(false)
+const bulkCopyMenuRef = ref<InstanceType<typeof Menu> | null>(null)
 const copyMenuRefs = ref<Record<string, InstanceType<typeof Menu> | null>>({})
 const resizingColumnKey = ref<IdentityColumnKey | null>(null)
 const resizeStartX = ref(0)
 const resizeStartWidth = ref(0)
+const selectedRowIdsByTab = ref<Record<'generate' | 'favorites', string[]>>({
+  generate: [],
+  favorites: [],
+})
 
 const genderOptions: SelectOption<IdentityGenderOption>[] = [
   { label: '随机', value: 'random' },
@@ -419,6 +468,57 @@ const currentRows = computed<Array<IdentityRecord | FavoriteIdentityRecord>>(() 
   }
 
   return favorites.value
+})
+
+const currentSelectedRowIds = computed({
+  get() {
+    return selectedRowIdsByTab.value[activeTab.value]
+  },
+  set(value: string[]) {
+    selectedRowIdsByTab.value[activeTab.value] = value
+  },
+})
+
+const selectedRows = computed<Array<IdentityRecord | FavoriteIdentityRecord>>(() => {
+  const selectedIdSet = new Set(currentSelectedRowIds.value)
+  return currentRows.value.filter((row) => {
+    return selectedIdSet.has(row.idCard)
+  })
+})
+
+const selectedRowCount = computed(() => {
+  return selectedRows.value.length
+})
+
+const allCurrentRowsSelected = computed(() => {
+  return currentRows.value.length > 0 && selectedRowCount.value === currentRows.value.length
+})
+
+const isCurrentSelectionPartial = computed(() => {
+  return selectedRowCount.value > 0 && !allCurrentRowsSelected.value
+})
+
+const bulkCopyMenuItems = computed(() => {
+  return [
+    {
+      label: '复制已选 JSON',
+      command: () => {
+        void handleCopySelectedRowsWithFormat('json')
+      },
+    },
+    {
+      label: '复制已选 Excel(TSV)',
+      command: () => {
+        void handleCopySelectedRowsWithFormat('tsv')
+      },
+    },
+    {
+      label: '复制已选 CSV',
+      command: () => {
+        void handleCopySelectedRowsWithFormat('csv')
+      },
+    },
+  ]
 })
 
 const isCityAutoLocked = computed(() => {
@@ -473,6 +573,21 @@ watch(
   { immediate: true },
 )
 
+watch(
+  currentRows,
+  (rows) => {
+    const validIdSet = new Set(rows.map(row => row.idCard))
+    const nextSelectedIds = currentSelectedRowIds.value.filter((id) => {
+      return validIdSet.has(id)
+    })
+
+    if (nextSelectedIds.length !== currentSelectedRowIds.value.length) {
+      currentSelectedRowIds.value = nextSelectedIds
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   provinceOptions.value = await listProvinceOptions()
 })
@@ -489,6 +604,10 @@ function setCopyMenuRef(idCard: string) {
 
 function toggleCopyMenu(event: Event, idCard: string) {
   copyMenuRefs.value[idCard]?.toggle(event)
+}
+
+function toggleBulkCopyMenu(event: Event) {
+  bulkCopyMenuRef.value?.toggle(event)
 }
 
 function buildCopyMenuItems(row: IdentityRecord | FavoriteIdentityRecord) {
@@ -569,6 +688,36 @@ function handleDistrictChange(value: GeneratorOptions['districtCode']) {
 
 function handleFieldEnabledChange(key: IdentityFieldKey, value: boolean) {
   store.setFieldEnabled(key, value)
+}
+
+function isRowSelected(idCard: string) {
+  return currentSelectedRowIds.value.includes(idCard)
+}
+
+function handleRowSelectionChange(idCard: string, checked: boolean) {
+  if (checked) {
+    if (isRowSelected(idCard)) {
+      return
+    }
+
+    currentSelectedRowIds.value = [...currentSelectedRowIds.value, idCard]
+    return
+  }
+
+  currentSelectedRowIds.value = currentSelectedRowIds.value.filter(id => id !== idCard)
+}
+
+function handleSelectAllRows(checked: boolean) {
+  if (!checked) {
+    clearCurrentSelection()
+    return
+  }
+
+  currentSelectedRowIds.value = currentRows.value.map(row => row.idCard)
+}
+
+function clearCurrentSelection() {
+  currentSelectedRowIds.value = []
 }
 
 function getColumnStyle(key: IdentityColumnKey) {
@@ -687,7 +836,17 @@ async function handleCopyCell(value: string, label: string) {
 async function handleCopyRowWithFormat(row: IdentityRecord | FavoriteIdentityRecord, format: ExportFormat) {
   const text = serializeRows([row], fieldConfigs.value, format)
   await writeText(text)
-  toast.success(`已复制 ${row.name} 的${getFormatName(format)}`)
+  toast.success(`已复制 ${row.name} 的 ${getFormatName(format)}`)
+}
+
+async function handleCopySelectedRowsWithFormat(format: ExportFormat) {
+  if (!selectedRows.value.length) {
+    return
+  }
+
+  const text = serializeRows(selectedRows.value, fieldConfigs.value, format)
+  await writeText(text)
+  toast.success(`已复制 ${selectedRows.value.length} 条数据的 ${getFormatName(format)}`)
 }
 
 async function writeText(value: string) {
@@ -704,13 +863,13 @@ function getFavoriteNote(row: IdentityRecord | FavoriteIdentityRecord): string {
 
 function getFormatName(format: ExportFormat): string {
   if (format === 'json') {
-    return ' JSON'
+    return 'JSON'
   }
 
   if (format === 'csv') {
-    return ' CSV'
+    return 'CSV'
   }
 
-  return ' Excel(TSV)'
+  return 'Excel(TSV)'
 }
 </script>
