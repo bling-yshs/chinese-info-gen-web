@@ -243,7 +243,7 @@
               </div>
             </div>
             <div class="overflow-x-auto">
-              <table class="min-w-full table-fixed border-collapse text-sm">
+              <table class="table-fixed border-collapse text-sm">
                 <thead class="bg-surface-100 dark:bg-surface-800">
                   <tr>
                     <th class="w-14 min-w-14 max-w-14 border-b border-surface-200 px-3 py-2 text-center font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200">
@@ -261,8 +261,21 @@
                       :style="getColumnStyle(field.key)"
                       class="group relative border-b border-surface-200 px-3 py-2 text-left font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200"
                     >
-                      <div class="truncate pr-3">
-                        {{ field.label }}
+                      <div class="flex items-center justify-between gap-2 pr-3">
+                        <span class="truncate">{{ field.label }}</span>
+                        <button
+                          v-if="currentRows.length"
+                          type="button"
+                          class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded opacity-0 transition hover:bg-surface-200 group-hover:opacity-100 dark:hover:bg-surface-700"
+                          :aria-label="`复制${field.label}列`"
+                          :title="`复制${field.label}列`"
+                          @click="handleCopyColumn(field.key, field.label)"
+                        >
+                          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+                            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+                          </svg>
+                        </button>
                       </div>
                       <button
                         type="button"
@@ -754,43 +767,7 @@ function stopColumnResize() {
 }
 
 function clampColumnWidth(key: IdentityColumnKey, width: number) {
-  if (key === 'gender') {
-    return Math.max(52, width)
-  }
-
-  if (key === 'name') {
-    return Math.max(64, width)
-  }
-
-  if (key === 'birthDate') {
-    return Math.max(88, width)
-  }
-
-  if (key === 'postalCode') {
-    return Math.max(72, width)
-  }
-
-  if (key === 'phone') {
-    return Math.max(96, width)
-  }
-
-  if (key === 'idCard') {
-    return Math.max(120, width)
-  }
-
-  if (key === 'email') {
-    return Math.max(110, width)
-  }
-
-  if (key === 'address') {
-    return Math.max(96, width)
-  }
-
-  if (key === 'actions') {
-    return Math.max(108, width)
-  }
-
-  return Math.max(52, width)
+  return Math.max(40, width)
 }
 
 async function handleGenerate() {
@@ -831,6 +808,20 @@ function handleFavoriteNoteChange(idCard: string, value: string | undefined) {
 async function handleCopyCell(value: string, label: string) {
   await writeText(value)
   toast.success(`已复制${label}`)
+}
+
+async function handleCopyColumn(fieldKey: IdentityFieldKey, label: string) {
+  if (!currentRows.value.length) {
+    return
+  }
+
+  const columnValues = currentRows.value.map((row) => {
+    return getFieldValue(row, fieldKey)
+  })
+
+  const text = columnValues.join('\n')
+  await writeText(text)
+  toast.success(`已复制${label}列 (${columnValues.length} 条)`)
 }
 
 async function handleCopyRowWithFormat(row: IdentityRecord | FavoriteIdentityRecord, format: ExportFormat) {

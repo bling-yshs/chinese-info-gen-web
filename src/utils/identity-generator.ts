@@ -123,13 +123,13 @@ const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
 }
 
 const DEFAULT_COLUMN_WIDTHS: IdentityColumnWidths = {
-  idCard: 180,
-  name: 96,
-  gender: 84,
-  birthDate: 120,
-  address: 214,
-  postalCode: 96,
-  phone: 128,
+  idCard: 185,
+  name: 100,
+  gender: 105,
+  birthDate: 130,
+  address: 290,
+  postalCode: 100,
+  phone: 130,
   email: 220,
   actions: 150,
 }
