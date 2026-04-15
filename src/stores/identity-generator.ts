@@ -58,6 +58,7 @@ function normalizeFavorites(favorites: FavoriteIdentityRecord[]): FavoriteIdenti
     return {
       ...favorite,
       companyName: favorite.companyName ?? '',
+      socialCreditCode: favorite.socialCreditCode ?? '',
     }
   })
 }

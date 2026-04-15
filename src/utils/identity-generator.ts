@@ -12,6 +12,7 @@ export type IdentityFieldKey
   = | 'idCard'
     | 'name'
     | 'companyName'
+    | 'socialCreditCode'
     | 'gender'
     | 'birthDate'
     | 'address'
@@ -48,6 +49,7 @@ export interface IdentityRecord {
   idCard: string
   name: string
   companyName: string
+  socialCreditCode: string
   gender: '男' | '女'
   birthDate: string
   provinceCode: string
@@ -107,6 +109,7 @@ const DEFAULT_FIELD_CONFIGS: IdentityFieldConfig[] = [
   { key: 'idCard', label: '身份证', enabled: true },
   { key: 'name', label: '姓名', enabled: true },
   { key: 'companyName', label: '企业名称', enabled: true },
+  { key: 'socialCreditCode', label: '统一社会信用代码', enabled: true },
   { key: 'gender', label: '性别', enabled: true },
   { key: 'birthDate', label: '出生日期', enabled: true },
   { key: 'address', label: '地址', enabled: true },
@@ -130,6 +133,7 @@ const DEFAULT_COLUMN_WIDTHS: IdentityColumnWidths = {
   idCard: 185,
   name: 100,
   companyName: 240,
+  socialCreditCode: 190,
   gender: 105,
   birthDate: 130,
   address: 290,
@@ -141,6 +145,10 @@ const DEFAULT_COLUMN_WIDTHS: IdentityColumnWidths = {
 
 const ID_CARD_WEIGHTS = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
 const ID_CARD_CHECK_CODES = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+const SOCIAL_CREDIT_CODE_CHARS = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+const SOCIAL_CREDIT_CODE_CHAR_POOL = SOCIAL_CREDIT_CODE_CHARS.split('')
+const SOCIAL_CREDIT_CODE_WEIGHTS = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+const SOCIAL_CREDIT_CODE_PREFIX = '91'
 const PHONE_PREFIXES = [
   '130',
   '131',
@@ -422,13 +430,14 @@ export async function generateIdentityRows(options: GeneratorOptions): Promise<I
   const count = sanitizeCount(options.count)
   const rows: IdentityRecord[] = []
   const usedIdCards = new Set<string>()
+  const usedSocialCreditCodes = new Set<string>()
   let attempts = 0
 
   while (rows.length < count && attempts < count * 30) {
     const row = generateSingleIdentity(options, dataset)
     attempts += 1
 
-    if (usedIdCards.has(row.idCard)) {
+    if (usedIdCards.has(row.idCard) || usedSocialCreditCodes.has(row.socialCreditCode)) {
       continue
     }
 
@@ -437,6 +446,7 @@ export async function generateIdentityRows(options: GeneratorOptions): Promise<I
     }
 
     usedIdCards.add(row.idCard)
+    usedSocialCreditCodes.add(row.socialCreditCode)
     rows.push(row)
   }
 
@@ -474,6 +484,18 @@ export function validateIdentityRecord(row: IdentityRecord): boolean {
   }
 
   if (!row.address.startsWith(row.provinceName) || !row.address.includes(row.districtName)) {
+    return false
+  }
+
+  if (!isValidSocialCreditCode(row.socialCreditCode)) {
+    return false
+  }
+
+  if (!row.socialCreditCode.startsWith(SOCIAL_CREDIT_CODE_PREFIX)) {
+    return false
+  }
+
+  if (row.socialCreditCode.slice(2, 8) !== row.districtCode) {
     return false
   }
 
@@ -563,6 +585,7 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
   const idCard = buildIdCard(area.districtCode, birthDate.compact, gender)
   const name = buildName(gender)
   const companyName = buildCompanyName()
+  const socialCreditCode = buildSocialCreditCode(area.districtCode)
   const address = buildAddress(area)
   const postalCode = buildPostalCode(area.districtCode)
   const phone = buildPhoneNumber()
@@ -573,6 +596,7 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
     idCard,
     name,
     companyName,
+    socialCreditCode,
     gender: gender === 'male' ? '男' : '女',
     birthDate: birthDate.display,
     provinceCode: area.provinceCode,
@@ -697,6 +721,59 @@ function buildName(gender: IdentityGender): string {
 
 function buildCompanyName(): string {
   return fakerZH_CN.company.name()
+}
+
+function buildSocialCreditCode(districtCode: string): string {
+  const body = `${SOCIAL_CREDIT_CODE_PREFIX}${districtCode}${buildSocialCreditCodeBody()}`
+  return `${body}${calculateSocialCreditCodeCheckChar(body)}`
+}
+
+function buildSocialCreditCodeBody(): string {
+  let result = ''
+
+  for (let index = 0; index < 9; index += 1) {
+    result += pickOne(SOCIAL_CREDIT_CODE_CHAR_POOL)
+  }
+
+  return result
+}
+
+function calculateSocialCreditCodeCheckChar(baseCode: string): string {
+  const sum = baseCode
+    .split('')
+    .reduce((total, current, index) => {
+      return total + getSocialCreditCodeValue(current) * (SOCIAL_CREDIT_CODE_WEIGHTS[index] ?? 0)
+    }, 0)
+  const checkValue = (31 - sum % 31) % 31
+  const checkChar = SOCIAL_CREDIT_CODE_CHARS[checkValue]
+
+  if (!checkChar) {
+    throw new Error('生成统一社会信用代码校验码失败')
+  }
+
+  return checkChar
+}
+
+function getSocialCreditCodeValue(char: string): number {
+  const value = SOCIAL_CREDIT_CODE_CHARS.indexOf(char)
+
+  if (value < 0) {
+    throw new Error('统一社会信用代码包含非法字符')
+  }
+
+  return value
+}
+
+function isValidSocialCreditCode(code: string): boolean {
+  if (!/^[0-9A-Z]{18}$/.test(code)) {
+    return false
+  }
+
+  if (/[IOSVZ]/.test(code)) {
+    return false
+  }
+
+  return calculateSocialCreditCodeCheckChar(code.slice(0, 17)) === code[17]
 }
 
 function buildAddress(area: ResolvedArea): string {
