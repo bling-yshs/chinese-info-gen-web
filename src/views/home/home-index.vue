@@ -315,7 +315,7 @@
                   <tr
                     v-for="row in currentRows"
                     :key="row.idCard"
-                    class="align-top odd:bg-surface-0 even:bg-surface-50/70 dark:odd:bg-surface-900 dark:even:bg-surface-900/60"
+                    :class="getRowClasses(row.idCard)"
                   >
                     <td class="border-b border-surface-200 px-3 py-2 text-center dark:border-surface-700">
                       <Checkbox
@@ -341,7 +341,7 @@
                     </td>
                     <td
                       :style="getColumnStyle('actions')"
-                      class="sticky right-0 z-10 border-b border-surface-200 bg-surface-0 px-3 py-2 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-surface-900"
+                      :class="getActionCellClasses(row.idCard)"
                     >
                       <div class="flex min-w-0 flex-wrap gap-2">
                         <div class="relative">
@@ -732,6 +732,22 @@ function handleSelectAllRows(checked: boolean) {
 
 function clearCurrentSelection() {
   currentSelectedRowIds.value = []
+}
+
+function getRowClasses(idCard: string) {
+  if (isRowSelected(idCard)) {
+    return 'align-top bg-primary-50/70 dark:bg-primary/10'
+  }
+
+  return 'align-top odd:bg-surface-0 even:bg-surface-50/70 dark:odd:bg-surface-900 dark:even:bg-surface-900/60'
+}
+
+function getActionCellClasses(idCard: string) {
+  if (isRowSelected(idCard)) {
+    return 'sticky right-0 z-10 border-b border-surface-200 bg-primary-50/70 px-3 py-2 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-primary/10'
+  }
+
+  return 'sticky right-0 z-10 border-b border-surface-200 bg-surface-0 px-3 py-2 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-surface-900'
 }
 
 function getColumnStyle(key: IdentityColumnKey) {
