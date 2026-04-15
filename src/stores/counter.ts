@@ -14,7 +14,7 @@ export const useCounterStore = defineStore(
   },
   {
     persist: {
-      paths: ['count'],
+      pick: ['count'],
     },
   },
 )

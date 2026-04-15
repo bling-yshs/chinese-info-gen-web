@@ -1,3 +1,4 @@
+import { fakerZH_CN } from '@faker-js/faker'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 
@@ -10,6 +11,7 @@ export type ExportFormat = 'json' | 'csv' | 'tsv'
 export type IdentityFieldKey
   = | 'idCard'
     | 'name'
+    | 'companyName'
     | 'gender'
     | 'birthDate'
     | 'address'
@@ -45,6 +47,7 @@ export interface IdentityRecord {
   uid: string
   idCard: string
   name: string
+  companyName: string
   gender: '男' | '女'
   birthDate: string
   provinceCode: string
@@ -103,6 +106,7 @@ export interface AreaDataset {
 const DEFAULT_FIELD_CONFIGS: IdentityFieldConfig[] = [
   { key: 'idCard', label: '身份证', enabled: true },
   { key: 'name', label: '姓名', enabled: true },
+  { key: 'companyName', label: '企业名称', enabled: true },
   { key: 'gender', label: '性别', enabled: true },
   { key: 'birthDate', label: '出生日期', enabled: true },
   { key: 'address', label: '地址', enabled: true },
@@ -125,6 +129,7 @@ const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
 const DEFAULT_COLUMN_WIDTHS: IdentityColumnWidths = {
   idCard: 185,
   name: 100,
+  companyName: 240,
   gender: 105,
   birthDate: 130,
   address: 290,
@@ -557,6 +562,7 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
   const gender = resolveGender(options.gender)
   const idCard = buildIdCard(area.districtCode, birthDate.compact, gender)
   const name = buildName(gender)
+  const companyName = buildCompanyName()
   const address = buildAddress(area)
   const postalCode = buildPostalCode(area.districtCode)
   const phone = buildPhoneNumber()
@@ -566,6 +572,7 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
     uid: crypto.randomUUID(),
     idCard,
     name,
+    companyName,
     gender: gender === 'male' ? '男' : '女',
     birthDate: birthDate.display,
     provinceCode: area.provinceCode,
@@ -656,9 +663,15 @@ function buildSequenceCode(gender: IdentityGender): string {
 function calculateCheckCode(baseCode: string): string {
   const sum = baseCode
     .split('')
-    .reduce((total, current, index) => total + Number(current) * ID_CARD_WEIGHTS[index], 0)
+    .reduce((total, current, index) => total + Number(current) * (ID_CARD_WEIGHTS[index] ?? 0), 0)
 
-  return ID_CARD_CHECK_CODES[sum % 11]
+  const checkCode = ID_CARD_CHECK_CODES[sum % 11]
+
+  if (!checkCode) {
+    throw new Error('生成校验码失败')
+  }
+
+  return checkCode
 }
 
 function isValidIdCard(idCard: string): boolean {
@@ -680,6 +693,10 @@ function buildName(gender: IdentityGender): string {
   }
 
   return `${surname}${givenName}`
+}
+
+function buildCompanyName(): string {
+  return fakerZH_CN.company.name()
 }
 
 function buildAddress(area: ResolvedArea): string {
@@ -812,15 +829,18 @@ function sortAreaCollections(
   districtsByCity: Record<string, ResolvedArea[]>,
 ): void {
   for (const provinceCode of Object.keys(citiesByProvince)) {
-    citiesByProvince[provinceCode].sort((left, right) => left.value.localeCompare(right.value))
+    const cityOptions = citiesByProvince[provinceCode]
+    cityOptions?.sort((left, right) => left.value.localeCompare(right.value))
   }
 
   for (const provinceCode of Object.keys(districtsByProvince)) {
-    districtsByProvince[provinceCode].sort((left, right) => left.districtCode.localeCompare(right.districtCode))
+    const districtOptions = districtsByProvince[provinceCode]
+    districtOptions?.sort((left, right) => left.districtCode.localeCompare(right.districtCode))
   }
 
   for (const cityCode of Object.keys(districtsByCity)) {
-    districtsByCity[cityCode].sort((left, right) => left.districtCode.localeCompare(right.districtCode))
+    const districtOptions = districtsByCity[cityCode]
+    districtOptions?.sort((left, right) => left.districtCode.localeCompare(right.districtCode))
   }
 }
 
@@ -853,7 +873,13 @@ function randomInt(min: number, max: number): number {
 }
 
 function pickOne<T>(items: T[]): T {
-  return items[randomInt(0, items.length - 1)]
+  const item = items[randomInt(0, items.length - 1)]
+
+  if (item === undefined) {
+    throw new Error('随机取值失败')
+  }
+
+  return item
 }
 
 function padNumber(value: number): string {

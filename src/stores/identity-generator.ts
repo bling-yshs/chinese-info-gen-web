@@ -18,6 +18,50 @@ import {
   sanitizeCount,
 } from '@/utils/identity-generator'
 
+function normalizeFieldConfigs(fieldConfigs: IdentityFieldConfig[]): IdentityFieldConfig[] {
+  const defaultFieldConfigs = createDefaultFieldConfigs()
+  const defaultFieldConfigMap = new Map(defaultFieldConfigs.map(item => [item.key, item]))
+  const nextFieldConfigs: IdentityFieldConfig[] = []
+
+  for (const fieldConfig of fieldConfigs) {
+    const defaultFieldConfig = defaultFieldConfigMap.get(fieldConfig.key)
+    if (!defaultFieldConfig) {
+      continue
+    }
+
+    nextFieldConfigs.push({
+      ...defaultFieldConfig,
+      enabled: fieldConfig.enabled,
+    })
+
+    defaultFieldConfigMap.delete(fieldConfig.key)
+  }
+
+  for (const fieldConfig of defaultFieldConfigs) {
+    if (defaultFieldConfigMap.has(fieldConfig.key)) {
+      nextFieldConfigs.push(fieldConfig)
+    }
+  }
+
+  return nextFieldConfigs
+}
+
+function normalizeColumnWidths(columnWidths: IdentityColumnWidths): IdentityColumnWidths {
+  return {
+    ...createDefaultColumnWidths(),
+    ...columnWidths,
+  }
+}
+
+function normalizeFavorites(favorites: FavoriteIdentityRecord[]): FavoriteIdentityRecord[] {
+  return favorites.map((favorite) => {
+    return {
+      ...favorite,
+      companyName: favorite.companyName ?? '',
+    }
+  })
+}
+
 export const useIdentityGeneratorStore = defineStore(
   'identity-generator',
   () => {
@@ -84,7 +128,7 @@ export const useIdentityGeneratorStore = defineStore(
     }
 
     function replaceFieldConfigs(nextFieldConfigs: IdentityFieldConfig[]) {
-      fieldConfigs.value = nextFieldConfigs.map(item => ({ ...item }))
+      fieldConfigs.value = normalizeFieldConfigs(nextFieldConfigs.map(item => ({ ...item })))
     }
 
     function setColumnWidth(key: IdentityColumnKey, width: number) {
@@ -175,7 +219,18 @@ export const useIdentityGeneratorStore = defineStore(
   },
   {
     persist: {
-      paths: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites'],
+      pick: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites'],
+      afterHydrate: (context) => {
+        const store = context.store as unknown as {
+          fieldConfigs: IdentityFieldConfig[]
+          columnWidths: IdentityColumnWidths
+          favorites: FavoriteIdentityRecord[]
+        }
+
+        store.fieldConfigs = normalizeFieldConfigs(store.fieldConfigs)
+        store.columnWidths = normalizeColumnWidths(store.columnWidths)
+        store.favorites = normalizeFavorites(store.favorites)
+      },
     },
   },
 )

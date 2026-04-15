@@ -392,6 +392,7 @@
 </template>
 
 <script setup lang="ts">
+import type { ComponentPublicInstance } from 'vue'
 import type {
   ExportFormat,
   FavoriteIdentityRecord,
@@ -610,8 +611,8 @@ function toggleSidebar() {
 }
 
 function setCopyMenuRef(idCard: string) {
-  return (instance: InstanceType<typeof Menu> | null) => {
-    copyMenuRefs.value[idCard] = instance
+  return (instance: Element | ComponentPublicInstance | null) => {
+    copyMenuRefs.value[idCard] = instance as InstanceType<typeof Menu> | null
   }
 }
 
