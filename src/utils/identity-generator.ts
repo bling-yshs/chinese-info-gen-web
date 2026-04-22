@@ -724,7 +724,7 @@ function buildCompanyName(): string {
   let attempts = 0
   const MAX_ATTEMPTS = 50
 
-  while (name.includes('无限公司') && attempts < MAX_ATTEMPTS) {
+  while (name.includes('无限') && attempts < MAX_ATTEMPTS) {
     name = fakerZH_CN.company.name()
     attempts += 1
   }
