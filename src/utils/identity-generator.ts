@@ -720,7 +720,16 @@ function buildName(gender: IdentityGender): string {
 }
 
 function buildCompanyName(): string {
-  return fakerZH_CN.company.name()
+  let name = fakerZH_CN.company.name()
+  let attempts = 0
+  const MAX_ATTEMPTS = 50
+
+  while (name.includes('无限公司') && attempts < MAX_ATTEMPTS) {
+    name = fakerZH_CN.company.name()
+    attempts += 1
+  }
+
+  return name
 }
 
 function buildSocialCreditCode(districtCode: string): string {

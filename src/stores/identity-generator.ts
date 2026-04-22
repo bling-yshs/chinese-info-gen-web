@@ -220,7 +220,7 @@ export const useIdentityGeneratorStore = defineStore(
   },
   {
     persist: {
-      pick: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites'],
+      pick: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites', 'generatedRows'],
       afterHydrate: (context) => {
         const store = context.store as unknown as {
           fieldConfigs: IdentityFieldConfig[]
