@@ -53,6 +53,24 @@ function normalizeColumnWidths(columnWidths: IdentityColumnWidths): IdentityColu
   }
 }
 
+/**
+ * 补齐旧缓存缺失的生成条件字段。
+ */
+function normalizeGeneratorOptions(generatorOptions: Partial<GeneratorOptions>): GeneratorOptions {
+  const nextGeneratorOptions = {
+    ...createDefaultGeneratorOptions(),
+    ...generatorOptions,
+  }
+
+  nextGeneratorOptions.count = sanitizeCount(nextGeneratorOptions.count)
+
+  if (![2, 3, 'random'].includes(nextGeneratorOptions.nameLength)) {
+    nextGeneratorOptions.nameLength = 'random'
+  }
+
+  return nextGeneratorOptions
+}
+
 function normalizeFavorites(favorites: FavoriteIdentityRecord[]): FavoriteIdentityRecord[] {
   return favorites.map((favorite) => {
     return {
@@ -223,11 +241,13 @@ export const useIdentityGeneratorStore = defineStore(
       pick: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites', 'generatedRows'],
       afterHydrate: (context) => {
         const store = context.store as unknown as {
+          generatorOptions: GeneratorOptions
           fieldConfigs: IdentityFieldConfig[]
           columnWidths: IdentityColumnWidths
           favorites: FavoriteIdentityRecord[]
         }
 
+        store.generatorOptions = normalizeGeneratorOptions(store.generatorOptions)
         store.fieldConfigs = normalizeFieldConfigs(store.fieldConfigs)
         store.columnWidths = normalizeColumnWidths(store.columnWidths)
         store.favorites = normalizeFavorites(store.favorites)

@@ -7,6 +7,7 @@ dayjs.extend(customParseFormat)
 export type IdentityTab = 'generate' | 'favorites'
 export type IdentityGender = 'male' | 'female'
 export type IdentityGenderOption = IdentityGender | 'random'
+export type IdentityNameLengthOption = 2 | 3 | 'random'
 export type ExportFormat = 'json' | 'csv' | 'tsv'
 export type IdentityFieldKey
   = | 'idCard'
@@ -36,6 +37,7 @@ export interface IdentityFieldConfig {
 export interface GeneratorOptions {
   count: number
   gender: IdentityGenderOption
+  nameLength: IdentityNameLengthOption
   birthYear: number | null
   birthMonth: number | null
   birthDay: number | null
@@ -121,6 +123,7 @@ const DEFAULT_FIELD_CONFIGS: IdentityFieldConfig[] = [
 const DEFAULT_GENERATOR_OPTIONS: GeneratorOptions = {
   count: 10,
   gender: 'random',
+  nameLength: 'random',
   birthYear: null,
   birthMonth: null,
   birthDay: null,
@@ -336,6 +339,9 @@ export function createDefaultFieldConfigs(): IdentityFieldConfig[] {
   return DEFAULT_FIELD_CONFIGS.map(item => ({ ...item }))
 }
 
+/**
+ * 创建默认生成条件。
+ */
 export function createDefaultGeneratorOptions(): GeneratorOptions {
   return { ...DEFAULT_GENERATOR_OPTIONS }
 }
@@ -583,7 +589,7 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
   const birthDate = resolveBirthDate(options)
   const gender = resolveGender(options.gender)
   const idCard = buildIdCard(area.districtCode, birthDate.compact, gender)
-  const name = buildName(gender)
+  const name = buildName(gender, options.nameLength)
   const companyName = buildCompanyName()
   const socialCreditCode = buildSocialCreditCode(area.districtCode)
   const address = buildAddress(area)
@@ -706,10 +712,13 @@ function isValidIdCard(idCard: string): boolean {
   return calculateCheckCode(idCard.slice(0, 17)) === idCard[17]
 }
 
-function buildName(gender: IdentityGender): string {
+/**
+ * 生成指定完整长度的中文姓名。
+ */
+function buildName(gender: IdentityGender, nameLength: IdentityNameLengthOption): string {
   const surname = pickOne(SURNAMES)
   const pool = gender === 'male' ? MALE_NAME_CHARS : FEMALE_NAME_CHARS
-  const givenNameLength = Math.random() > 0.45 ? 2 : 1
+  const givenNameLength = nameLength === 'random' ? (Math.random() > 0.45 ? 2 : 1) : nameLength - 1
   let givenName = ''
 
   for (let index = 0; index < givenNameLength; index += 1) {

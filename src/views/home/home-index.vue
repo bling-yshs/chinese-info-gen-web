@@ -37,6 +37,18 @@
                 </div>
 
                 <div class="grid gap-2">
+                  <label class="text-sm font-medium">姓名长度</label>
+                  <Select
+                    :model-value="generatorOptions.nameLength"
+                    :options="nameLengthOptions"
+                    option-label="label"
+                    option-value="value"
+                    placeholder="随机"
+                    @update:model-value="handleNameLengthChange"
+                  />
+                </div>
+
+                <div class="grid gap-2">
                   <label class="text-sm font-medium">出生日期</label>
                   <div class="grid gap-3 sm:grid-cols-3">
                     <Select
@@ -401,6 +413,7 @@ import type {
   IdentityFieldConfig,
   IdentityFieldKey,
   IdentityGenderOption,
+  IdentityNameLengthOption,
   IdentityRecord,
   SelectOption,
 } from '@/utils/identity-generator'
@@ -452,6 +465,12 @@ const genderOptions: SelectOption<IdentityGenderOption>[] = [
   { label: '随机', value: 'random' },
   { label: '男', value: 'male' },
   { label: '女', value: 'female' },
+]
+
+const nameLengthOptions: SelectOption<IdentityNameLengthOption>[] = [
+  { label: '随机', value: 'random' },
+  { label: '2 个字', value: 2 },
+  { label: '3 个字', value: 3 },
 ]
 
 const copyActionLabel = '复制'
@@ -674,6 +693,13 @@ function handleCountChange(value: string | number | undefined) {
 
 function handleGenderChange(value: IdentityGenderOption) {
   store.updateGeneratorOptions({ gender: value })
+}
+
+/**
+ * 更新生成姓名的完整长度。
+ */
+function handleNameLengthChange(value: IdentityNameLengthOption) {
+  store.updateGeneratorOptions({ nameLength: value })
 }
 
 function handleBirthYearChange(value: GeneratorOptions['birthYear']) {
