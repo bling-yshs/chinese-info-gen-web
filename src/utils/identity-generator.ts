@@ -9,7 +9,7 @@ export type IdentityGender = 'male' | 'female'
 export type IdentityGenderOption = IdentityGender | 'random'
 export type IdentityNameLengthOption = 2 | 3 | 'random'
 export type ExportFormat = 'json' | 'csv' | 'tsv'
-export type IdentityFieldKey
+export type IdentityBuiltInFieldKey
   = | 'idCard'
     | 'name'
     | 'companyName'
@@ -20,8 +20,10 @@ export type IdentityFieldKey
     | 'postalCode'
     | 'phone'
     | 'email'
+export type IdentityCustomFieldKey = `custom:${string}`
+export type IdentityFieldKey = IdentityBuiltInFieldKey | IdentityCustomFieldKey
 export type IdentityColumnKey = IdentityFieldKey | 'actions'
-export type IdentityColumnWidths = Record<IdentityColumnKey, number>
+export type IdentityColumnWidths = Record<string, number>
 
 export interface SelectOption<T = string | number> {
   label: string
@@ -32,6 +34,7 @@ export interface IdentityFieldConfig {
   key: IdentityFieldKey
   label: string
   enabled: boolean
+  code?: string
 }
 
 export interface GeneratorOptions {
@@ -64,6 +67,7 @@ export interface IdentityRecord {
   postalCode: string
   phone: string
   email: string
+  customValues: Record<string, string>
   createdAt: string
 }
 
@@ -332,8 +336,44 @@ const EMAIL_NAME_PARTS = [
 const MAX_GENERATE_COUNT = 50
 const MIN_BIRTH_YEAR = 1960
 const MAX_BIRTH_YEAR = dayjs().year() - 18
+const CUSTOM_FIELD_KEY_PREFIX = 'custom:'
+const CUSTOM_FIELD_ERROR_VALUE = '[执行失败]'
+const CUSTOM_FIELD_TIMEOUT_VALUE = '[执行超时]'
+const DEFAULT_CUSTOM_COLUMN_WIDTH = 180
+const CUSTOM_FIELD_WORKER_TIMEOUT_MS = 1000
 
 let areaDatasetPromise: Promise<AreaDataset> | null = null
+
+/**
+ * 判断字段是否为用户自定义字段。
+ */
+export function isCustomFieldKey(key: IdentityFieldKey): key is IdentityCustomFieldKey {
+  return key.startsWith(CUSTOM_FIELD_KEY_PREFIX)
+}
+
+/**
+ * 从自定义字段 key 中提取稳定 id。
+ */
+export function getCustomFieldId(key: IdentityCustomFieldKey): string {
+  return key.slice(CUSTOM_FIELD_KEY_PREFIX.length)
+}
+
+/**
+ * 创建一个新的自定义字段配置。
+ */
+export function createDefaultCustomFieldConfig(): IdentityFieldConfig {
+  return {
+    key: `${CUSTOM_FIELD_KEY_PREFIX}${crypto.randomUUID()}`,
+    label: '自定义字段',
+    enabled: true,
+    code: `const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.split('')
+const length = randomInt(10, 16)
+
+return Array.from({ length }, () => {
+  return pickOne(chars)
+}).join('')`,
+  }
+}
 
 export function createDefaultFieldConfigs(): IdentityFieldConfig[] {
   return DEFAULT_FIELD_CONFIGS.map(item => ({ ...item }))
@@ -431,7 +471,10 @@ export async function listDistrictOptions(
   })
 }
 
-export async function generateIdentityRows(options: GeneratorOptions): Promise<IdentityRecord[]> {
+export async function generateIdentityRows(
+  options: GeneratorOptions,
+  fieldConfigs: IdentityFieldConfig[] = [],
+): Promise<IdentityRecord[]> {
   const dataset = await getAreaDataset()
   const count = sanitizeCount(options.count)
   const rows: IdentityRecord[] = []
@@ -456,7 +499,7 @@ export async function generateIdentityRows(options: GeneratorOptions): Promise<I
     rows.push(row)
   }
 
-  return rows
+  return fillCustomFieldValues(rows, fieldConfigs)
 }
 
 export function validateIdentityRecord(row: IdentityRecord): boolean {
@@ -513,6 +556,10 @@ export function getEnabledFieldConfigs(fieldConfigs: IdentityFieldConfig[]): Ide
 }
 
 export function getFieldValue(row: IdentityRecord | FavoriteIdentityRecord, key: IdentityFieldKey): string {
+  if (isCustomFieldKey(key)) {
+    return row.customValues?.[getCustomFieldId(key)] ?? ''
+  }
+
   return String(row[key] ?? '')
 }
 
@@ -576,6 +623,41 @@ export function createDefaultColumnWidths(): IdentityColumnWidths {
   return { ...DEFAULT_COLUMN_WIDTHS }
 }
 
+/**
+ * 获取指定字段的默认列宽。
+ */
+export function getDefaultColumnWidth(key: IdentityColumnKey): number {
+  return DEFAULT_COLUMN_WIDTHS[key as keyof typeof DEFAULT_COLUMN_WIDTHS] ?? DEFAULT_CUSTOM_COLUMN_WIDTH
+}
+
+/**
+ * 统计自定义字段执行失败或超时的单元格数量。
+ */
+export function countCustomFieldExecutionErrors(
+  rows: Array<IdentityRecord | FavoriteIdentityRecord>,
+  fieldConfigs: IdentityFieldConfig[],
+): number {
+  const customFieldIds = fieldConfigs
+    .filter((fieldConfig) => {
+      return isCustomFieldKey(fieldConfig.key)
+    })
+    .map((fieldConfig) => {
+      return getCustomFieldId(fieldConfig.key as IdentityCustomFieldKey)
+    })
+  let count = 0
+
+  for (const row of rows) {
+    for (const customFieldId of customFieldIds) {
+      const value = row.customValues?.[customFieldId]
+      if (value === CUSTOM_FIELD_ERROR_VALUE || value === CUSTOM_FIELD_TIMEOUT_VALUE) {
+        count += 1
+      }
+    }
+  }
+
+  return count
+}
+
 export function sanitizeCount(value: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_GENERATOR_OPTIONS.count
@@ -615,8 +697,214 @@ function generateSingleIdentity(options: GeneratorOptions, dataset: AreaDataset)
     postalCode,
     phone,
     email,
+    customValues: {},
     createdAt: new Date().toISOString(),
   }
+}
+
+/**
+ * 使用 Worker 为生成结果补齐自定义字段值。
+ */
+async function fillCustomFieldValues(
+  rows: IdentityRecord[],
+  fieldConfigs: IdentityFieldConfig[],
+): Promise<IdentityRecord[]> {
+  const customFieldConfigs = fieldConfigs.filter((fieldConfig) => {
+    return isCustomFieldKey(fieldConfig.key)
+  })
+
+  if (!customFieldConfigs.length || !rows.length) {
+    return rows
+  }
+
+  const customFieldValues = await executeCustomFieldsInWorker(rows, customFieldConfigs)
+
+  return rows.map((row) => {
+    return {
+      ...row,
+      customValues: {
+        ...row.customValues,
+        ...(customFieldValues[row.uid] ?? {}),
+      },
+    }
+  })
+}
+
+/**
+ * 在 Worker 中执行用户自定义 JS，避免主线程被阻塞。
+ */
+function executeCustomFieldsInWorker(
+  rows: IdentityRecord[],
+  fieldConfigs: IdentityFieldConfig[],
+): Promise<Record<string, Record<string, string>>> {
+  const workerUrl = URL.createObjectURL(new Blob([createCustomFieldWorkerSource()], { type: 'text/javascript' }))
+  const worker = new Worker(workerUrl)
+  const customFields = fieldConfigs.map((fieldConfig) => {
+    return {
+      id: getCustomFieldId(fieldConfig.key as IdentityCustomFieldKey),
+      code: fieldConfig.code ?? '',
+    }
+  })
+
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      worker.terminate()
+      URL.revokeObjectURL(workerUrl)
+      resolve(createTimedOutCustomFieldValues(rows, customFields))
+    }, CUSTOM_FIELD_WORKER_TIMEOUT_MS)
+
+    worker.addEventListener('message', (event: MessageEvent<Record<string, Record<string, string>>>) => {
+      window.clearTimeout(timer)
+      worker.terminate()
+      URL.revokeObjectURL(workerUrl)
+      resolve(event.data)
+    })
+
+    worker.addEventListener('error', () => {
+      window.clearTimeout(timer)
+      worker.terminate()
+      URL.revokeObjectURL(workerUrl)
+      resolve(createFailedCustomFieldValues(rows, customFields))
+    })
+
+    worker.postMessage({
+      rows,
+      fields: customFields,
+      errorValue: CUSTOM_FIELD_ERROR_VALUE,
+    })
+  })
+}
+
+/**
+ * 创建 Worker 运行源码。
+ */
+function createCustomFieldWorkerSource(): string {
+  return `
+self.addEventListener('message', (event) => {
+  const { rows, fields, errorValue } = event.data
+  const valuesByRowUid = {}
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+
+  function pickOne(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('随机取值失败')
+    }
+
+    return items[randomInt(0, items.length - 1)]
+  }
+
+  function formatValue(value) {
+    if (value == null) {
+      return ''
+    }
+
+    if (typeof value === 'string') {
+      return value
+    }
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value)
+    }
+
+    return String(value)
+  }
+
+  for (const row of rows) {
+    const customValues = {}
+
+    for (const field of fields) {
+      try {
+        if (!field.code.trim()) {
+          customValues[field.id] = ''
+          continue
+        }
+
+        const executor = new Function(
+          'row',
+          'index',
+          'randomInt',
+          'pickOne',
+          'self',
+          'globalThis',
+          'fetch',
+          'XMLHttpRequest',
+          'importScripts',
+          'postMessage',
+          'close',
+          '"use strict";\\n' + field.code,
+        )
+
+        customValues[field.id] = formatValue(executor(
+          Object.freeze({ ...row }),
+          rows.indexOf(row),
+          randomInt,
+          pickOne,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+        ))
+      }
+      catch {
+        customValues[field.id] = errorValue
+      }
+    }
+
+    valuesByRowUid[row.uid] = customValues
+  }
+
+  self.postMessage(valuesByRowUid)
+})
+`
+}
+
+/**
+ * 创建自定义字段超时后的占位值。
+ */
+function createTimedOutCustomFieldValues(
+  rows: IdentityRecord[],
+  customFields: Array<{ id: string, code: string }>,
+): Record<string, Record<string, string>> {
+  return createFallbackCustomFieldValues(rows, customFields, CUSTOM_FIELD_TIMEOUT_VALUE)
+}
+
+/**
+ * 创建自定义字段执行失败后的占位值。
+ */
+function createFailedCustomFieldValues(
+  rows: IdentityRecord[],
+  customFields: Array<{ id: string, code: string }>,
+): Record<string, Record<string, string>> {
+  return createFallbackCustomFieldValues(rows, customFields, CUSTOM_FIELD_ERROR_VALUE)
+}
+
+/**
+ * 创建自定义字段统一占位值。
+ */
+function createFallbackCustomFieldValues(
+  rows: IdentityRecord[],
+  customFields: Array<{ id: string, code: string }>,
+  value: string,
+): Record<string, Record<string, string>> {
+  const valuesByRowUid: Record<string, Record<string, string>> = {}
+
+  for (const row of rows) {
+    const customValues: Record<string, string> = {}
+
+    for (const customField of customFields) {
+      customValues[customField.id] = value
+    }
+
+    valuesByRowUid[row.uid] = customValues
+  }
+
+  return valuesByRowUid
 }
 
 function resolveArea(options: GeneratorOptions, dataset: AreaDataset): ResolvedArea {

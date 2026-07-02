@@ -153,30 +153,53 @@
                     />
                     <span class="truncate text-sm">{{ field.label }}</span>
                   </label>
-                  <button
-                    type="button"
-                    class="field-drag-handle inline-flex h-8 w-8 cursor-move items-center justify-center rounded-md text-surface-500 transition hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-                    aria-label="拖拽排序"
-                    title="拖拽排序"
-                  >
-                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                      <circle cx="5" cy="4" r="1.25" />
-                      <circle cx="5" cy="8" r="1.25" />
-                      <circle cx="5" cy="12" r="1.25" />
-                      <circle cx="11" cy="4" r="1.25" />
-                      <circle cx="11" cy="8" r="1.25" />
-                      <circle cx="11" cy="12" r="1.25" />
-                    </svg>
-                  </button>
+
+                  <div class="flex shrink-0 items-center gap-1">
+                    <button
+                      v-if="isCustomFieldKey(field.key)"
+                      type="button"
+                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs font-medium text-primary transition hover:bg-primary-50 dark:hover:bg-primary/15"
+                      aria-label="编辑自定义字段"
+                      title="编辑自定义字段"
+                      @click.stop="openEditCustomFieldDialog(field)"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      v-if="isCustomFieldKey(field.key)"
+                      type="button"
+                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
+                      aria-label="删除自定义字段"
+                      title="删除自定义字段"
+                      @click.stop="handleRemoveCustomField(field.key)"
+                    >
+                      删除
+                    </button>
+                    <button
+                      type="button"
+                      class="field-drag-handle inline-flex h-8 w-8 cursor-move items-center justify-center rounded-md text-surface-500 transition hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+                      aria-label="拖拽排序"
+                      title="拖拽排序"
+                    >
+                      <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <circle cx="5" cy="4" r="1.25" />
+                        <circle cx="5" cy="8" r="1.25" />
+                        <circle cx="5" cy="12" r="1.25" />
+                        <circle cx="11" cy="4" r="1.25" />
+                        <circle cx="11" cy="8" r="1.25" />
+                        <circle cx="11" cy="12" r="1.25" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </VueDraggable>
             </template>
             <template #footer>
               <div class="flex flex-wrap gap-2 pt-4">
                 <Button
-                  label="恢复默认字段"
+                  label="添加自定义字段"
                   text
-                  @click="handleResetFields"
+                  @click="openAddCustomFieldDialog"
                 />
                 <Button
                   label="恢复列宽"
@@ -400,6 +423,47 @@
         </div>
       </main>
     </div>
+
+    <Dialog
+      v-model:visible="isCustomFieldDialogVisible"
+      modal
+      :header="customFieldDialogTitle"
+      :style="{ width: 'min(92vw, 560px)' }"
+      @hide="resetCustomFieldDialog"
+    >
+      <div class="grid gap-4">
+        <div class="grid gap-2">
+          <label class="text-sm font-medium">字段名称</label>
+          <InputText
+            v-model="customFieldDraftLabel"
+            placeholder="例如：随机密码"
+          />
+        </div>
+
+        <div class="grid gap-2">
+          <label class="text-sm font-medium">JS 代码</label>
+          <Textarea
+            v-model="customFieldDraftCode"
+            rows="10"
+            auto-resize
+            spellcheck="false"
+            placeholder="return `${pickOne(['A', 'B', 'C'])}-${randomInt(1000, 9999)}`"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button
+          label="取消"
+          text
+          @click="closeCustomFieldDialog"
+        />
+        <Button
+          label="保存"
+          @click="saveCustomFieldDialog"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -410,6 +474,7 @@ import type {
   FavoriteIdentityRecord,
   GeneratorOptions,
   IdentityColumnKey,
+  IdentityCustomFieldKey,
   IdentityFieldConfig,
   IdentityFieldKey,
   IdentityGenderOption,
@@ -426,8 +491,10 @@ import {
   createDayOptions,
   createMonthOptions,
   createYearOptions,
+  getDefaultColumnWidth,
   getEnabledFieldConfigs,
   getFieldValue,
+  isCustomFieldKey,
   listCityOptions,
   listDistrictOptions,
   listProvinceOptions,
@@ -436,6 +503,7 @@ import {
 import Button from '@/volt/Button.vue'
 import Card from '@/volt/Card.vue'
 import Checkbox from '@/volt/Checkbox.vue'
+import Dialog from '@/volt/Dialog.vue'
 import InputText from '@/volt/InputText.vue'
 import Menu from '@/volt/Menu.vue'
 import Select from '@/volt/Select.vue'
@@ -444,8 +512,19 @@ import TabList from '@/volt/TabList.vue'
 import Tabs from '@/volt/Tabs.vue'
 import Textarea from '@/volt/Textarea.vue'
 
+type CustomFieldDialogMode = 'add' | 'edit'
+
 const store = useIdentityGeneratorStore()
-const { activeTab, columnWidths, favorites, fieldConfigs, generatedRows, generatorOptions, isGenerating } = storeToRefs(store)
+const {
+  activeTab,
+  columnWidths,
+  favorites,
+  fieldConfigs,
+  generatedRows,
+  generatorOptions,
+  isGenerating,
+  lastCustomFieldErrorCount,
+} = storeToRefs(store)
 
 const provinceOptions = ref<SelectOption<string>[]>([])
 const cityOptions = ref<SelectOption<string>[]>([])
@@ -456,6 +535,11 @@ const copyMenuRefs = ref<Record<string, InstanceType<typeof Menu> | null>>({})
 const resizingColumnKey = ref<IdentityColumnKey | null>(null)
 const resizeStartX = ref(0)
 const resizeStartWidth = ref(0)
+const isCustomFieldDialogVisible = ref(false)
+const customFieldDialogMode = ref<CustomFieldDialogMode>('add')
+const editingCustomFieldKey = ref<IdentityCustomFieldKey | null>(null)
+const customFieldDraftLabel = ref('')
+const customFieldDraftCode = ref('')
 const selectedRowIdsByTab = ref<Record<'generate' | 'favorites', string[]>>({
   generate: [],
   favorites: [],
@@ -484,6 +568,14 @@ const dayOptions = computed(() => {
 
 const visibleFieldConfigs = computed(() => {
   return getEnabledFieldConfigs(fieldConfigs.value)
+})
+
+const customFieldDialogTitle = computed(() => {
+  if (customFieldDialogMode.value === 'edit') {
+    return '编辑自定义字段'
+  }
+
+  return '添加自定义字段'
 })
 
 const draggableFieldConfigs = computed({
@@ -777,7 +869,7 @@ function getActionCellClasses(idCard: string) {
 }
 
 function getColumnStyle(key: IdentityColumnKey) {
-  const width = columnWidths.value[key]
+  const width = columnWidths.value[key] ?? getDefaultColumnWidth(key)
   return {
     width: `${width}px`,
     minWidth: `${width}px`,
@@ -789,7 +881,7 @@ function startColumnResize(event: MouseEvent, key: IdentityColumnKey) {
   event.preventDefault()
   resizingColumnKey.value = key
   resizeStartX.value = event.clientX
-  resizeStartWidth.value = columnWidths.value[key]
+  resizeStartWidth.value = columnWidths.value[key] ?? getDefaultColumnWidth(key)
   window.addEventListener('mousemove', handleColumnResize)
   window.addEventListener('mouseup', stopColumnResize)
 }
@@ -815,6 +907,12 @@ function clampColumnWidth(key: IdentityColumnKey, width: number) {
 
 async function handleGenerate() {
   await store.generateRows()
+
+  if (lastCustomFieldErrorCount.value > 0) {
+    toast.success(`已生成 ${generatedRows.value.length} 条资料，${lastCustomFieldErrorCount.value} 个自定义值执行失败`)
+    return
+  }
+
   toast.success(`已生成 ${generatedRows.value.length} 条资料`)
 }
 
@@ -823,14 +921,92 @@ function handleResetGenerator() {
   toast.success('已重置生成条件')
 }
 
-function handleResetFields() {
-  store.resetFieldConfigs()
-  toast.success('已恢复默认字段顺序')
-}
-
 function handleResetColumnWidths() {
   store.resetColumnWidths()
   toast.success('已恢复默认列宽')
+}
+
+/**
+ * 打开新增自定义字段弹窗。
+ */
+function openAddCustomFieldDialog() {
+  customFieldDialogMode.value = 'add'
+  editingCustomFieldKey.value = null
+  customFieldDraftLabel.value = ''
+  customFieldDraftCode.value = ''
+  isCustomFieldDialogVisible.value = true
+}
+
+/**
+ * 打开编辑自定义字段弹窗。
+ */
+function openEditCustomFieldDialog(fieldConfig: IdentityFieldConfig) {
+  if (!isCustomFieldKey(fieldConfig.key)) {
+    return
+  }
+
+  customFieldDialogMode.value = 'edit'
+  editingCustomFieldKey.value = fieldConfig.key
+  customFieldDraftLabel.value = fieldConfig.label
+  customFieldDraftCode.value = fieldConfig.code ?? ''
+  isCustomFieldDialogVisible.value = true
+}
+
+/**
+ * 关闭自定义字段弹窗。
+ */
+function closeCustomFieldDialog() {
+  isCustomFieldDialogVisible.value = false
+}
+
+/**
+ * 重置自定义字段弹窗状态。
+ */
+function resetCustomFieldDialog() {
+  customFieldDialogMode.value = 'add'
+  editingCustomFieldKey.value = null
+  customFieldDraftLabel.value = ''
+  customFieldDraftCode.value = ''
+}
+
+/**
+ * 保存自定义字段弹窗内容。
+ */
+function saveCustomFieldDialog() {
+  const label = customFieldDraftLabel.value.trim()
+  if (!label) {
+    toast.error('请输入字段名称')
+    return
+  }
+
+  if (customFieldDialogMode.value === 'edit' && editingCustomFieldKey.value) {
+    store.updateCustomField(editingCustomFieldKey.value, {
+      label,
+      code: customFieldDraftCode.value,
+    })
+    toast.success('已更新自定义字段')
+  }
+  else {
+    store.addCustomField({
+      label,
+      code: customFieldDraftCode.value,
+    })
+    toast.success('已添加自定义字段')
+  }
+
+  closeCustomFieldDialog()
+}
+
+/**
+ * 删除自定义字段配置。
+ */
+function handleRemoveCustomField(key: IdentityFieldKey) {
+  if (!isCustomFieldKey(key)) {
+    return
+  }
+
+  store.removeCustomField(key)
+  toast.success('已删除自定义字段')
 }
 
 function handleToggleFavorite(row: IdentityRecord | FavoriteIdentityRecord) {
