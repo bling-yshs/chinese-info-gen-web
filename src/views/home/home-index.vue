@@ -7,13 +7,11 @@
       >
         <div v-if="isSidebarOpen" class="flex h-screen flex-col gap-4 overflow-y-auto p-4">
           <Card>
-            <template #title>
-              生成条件
-            </template>
+            <template #title> 生成条件 </template>
             <template #content>
               <div class="grid gap-4">
                 <div class="grid gap-2">
-                  <label class="text-sm font-medium">生成数量</label>
+                  <label class="font-medium">生成数量</label>
                   <InputText
                     :model-value="String(generatorOptions.count)"
                     type="number"
@@ -25,7 +23,7 @@
                 </div>
 
                 <div class="grid gap-2">
-                  <label class="text-sm font-medium">性别</label>
+                  <label class="font-medium">性别</label>
                   <Select
                     :model-value="generatorOptions.gender"
                     :options="genderOptions"
@@ -37,7 +35,7 @@
                 </div>
 
                 <div class="grid gap-2">
-                  <label class="text-sm font-medium">姓名长度</label>
+                  <label class="font-medium">姓名长度</label>
                   <Select
                     :model-value="generatorOptions.nameLength"
                     :options="nameLengthOptions"
@@ -49,7 +47,7 @@
                 </div>
 
                 <div class="grid gap-2">
-                  <label class="text-sm font-medium">出生日期</label>
+                  <label class="font-medium">出生日期</label>
                   <div class="grid gap-3 sm:grid-cols-3">
                     <Select
                       :model-value="generatorOptions.birthYear"
@@ -83,7 +81,7 @@
                 </div>
 
                 <div class="grid gap-2">
-                  <label class="text-sm font-medium">省市区</label>
+                  <label class="font-medium">省市区</label>
                   <div class="grid gap-3">
                     <Select
                       :model-value="generatorOptions.provinceCode"
@@ -120,19 +118,13 @@
                   </div>
                 </div>
 
-                <Button
-                  label="重置条件"
-                  outlined
-                  @click="handleResetGenerator"
-                />
+                <Button label="重置条件" outlined @click="handleResetGenerator" />
               </div>
             </template>
           </Card>
 
           <Card>
-            <template #title>
-              字段显示与排序
-            </template>
+            <template #title> 字段显示与排序 </template>
             <template #content>
               <VueDraggable
                 v-model="draggableFieldConfigs"
@@ -151,14 +143,14 @@
                       binary
                       @update:model-value="handleFieldEnabledChange(field.key, $event)"
                     />
-                    <span class="truncate text-sm">{{ field.label }}</span>
+                    <span class="truncate">{{ field.label }}</span>
                   </label>
 
                   <div class="flex shrink-0 items-center gap-1">
                     <button
                       v-if="isCustomFieldKey(field.key)"
                       type="button"
-                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs font-medium text-primary transition hover:bg-primary-50 dark:hover:bg-primary/15"
+                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-sm font-medium text-primary transition hover:bg-primary-50 dark:hover:bg-primary/15"
                       aria-label="编辑自定义字段"
                       title="编辑自定义字段"
                       @click.stop="openEditCustomFieldDialog(field)"
@@ -168,7 +160,7 @@
                     <button
                       v-if="isCustomFieldKey(field.key)"
                       type="button"
-                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
+                      class="inline-flex h-8 items-center justify-center rounded-md px-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
                       aria-label="删除自定义字段"
                       title="删除自定义字段"
                       @click.stop="handleRemoveCustomField(field.key)"
@@ -181,7 +173,12 @@
                       aria-label="拖拽排序"
                       title="拖拽排序"
                     >
-                      <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <svg
+                        class="h-4 w-4"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
                         <circle cx="5" cy="4" r="1.25" />
                         <circle cx="5" cy="8" r="1.25" />
                         <circle cx="5" cy="12" r="1.25" />
@@ -196,16 +193,8 @@
             </template>
             <template #footer>
               <div class="flex flex-wrap gap-2 pt-4">
-                <Button
-                  label="添加自定义字段"
-                  text
-                  @click="openAddCustomFieldDialog"
-                />
-                <Button
-                  label="恢复列宽"
-                  text
-                  @click="handleResetColumnWidths"
-                />
+                <Button label="添加自定义字段" text @click="openAddCustomFieldDialog" />
+                <Button label="恢复列宽" text @click="handleResetColumnWidths" />
               </div>
             </template>
           </Card>
@@ -218,24 +207,22 @@
             <div class="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-surface-200 bg-surface-0 text-surface-600 transition hover:bg-surface-100 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-surface-200 bg-surface-0 text-surface-600 transition hover:bg-surface-100 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
                 :aria-label="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
                 :title="isSidebarOpen ? '收起侧边栏' : '展开侧边栏'"
                 @click="toggleSidebar"
               >
-                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M3 4.75A1.75 1.75 0 0 1 4.75 3h10.5A1.75 1.75 0 0 1 17 4.75v10.5A1.75 1.75 0 0 1 15.25 17H4.75A1.75 1.75 0 0 1 3 15.25V4.75Zm4.5-.25h-2.75A.25.25 0 0 0 4.5 4.75v10.5c0 .138.112.25.25.25H7.5V4.5Zm1.5 11h6.25a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H9v11Z" />
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M3 4.75A1.75 1.75 0 0 1 4.75 3h10.5A1.75 1.75 0 0 1 17 4.75v10.5A1.75 1.75 0 0 1 15.25 17H4.75A1.75 1.75 0 0 1 3 15.25V4.75Zm4.5-.25h-2.75A.25.25 0 0 0 4.5 4.75v10.5c0 .138.112.25.25.25H7.5V4.5Zm1.5 11h6.25a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H9v11Z"
+                  />
                 </svg>
               </button>
 
               <Tabs :value="activeTab" class="min-w-0">
                 <TabList>
-                  <Tab value="generate" @click="store.setActiveTab('generate')">
-                    主页
-                  </Tab>
-                  <Tab value="favorites" @click="store.setActiveTab('favorites')">
-                    收藏
-                  </Tab>
+                  <Tab value="generate" @click="store.setActiveTab('generate')"> 主页 </Tab>
+                  <Tab value="favorites" @click="store.setActiveTab('favorites')"> 收藏 </Tab>
                 </TabList>
               </Tabs>
             </div>
@@ -248,9 +235,13 @@
             />
           </div>
 
-          <div class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-sm dark:border-surface-700 dark:bg-surface-900">
-            <div class="flex items-center justify-between gap-3 border-b border-surface-200 px-3 py-2 dark:border-surface-700">
-              <div class="text-sm text-surface-600 dark:text-surface-300">
+          <div
+            class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-sm dark:border-surface-700 dark:bg-surface-900"
+          >
+            <div
+              class="flex items-center justify-between gap-3 border-b border-surface-200 px-3 py-2 dark:border-surface-700"
+            >
+              <div class="text-surface-600 dark:text-surface-300">
                 已选 {{ selectedRowCount }} 条
               </div>
               <div class="flex items-center gap-2">
@@ -269,19 +260,17 @@
                     :disabled="!selectedRowCount"
                     @click="toggleBulkCopyMenu"
                   />
-                  <Menu
-                    ref="bulkCopyMenuRef"
-                    :model="bulkCopyMenuItems"
-                    popup
-                  />
+                  <Menu ref="bulkCopyMenuRef" :model="bulkCopyMenuItems" popup />
                 </div>
               </div>
             </div>
             <div class="overflow-x-auto">
-              <table class="table-fixed border-collapse text-sm">
+              <table class="table-fixed border-collapse">
                 <thead class="bg-surface-100 dark:bg-surface-800">
                   <tr>
-                    <th class="w-14 min-w-14 max-w-14 border-b border-surface-200 px-3 py-2 text-center font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200">
+                    <th
+                      class="w-14 min-w-14 max-w-14 border-b border-surface-200 px-3 py-2 text-center font-medium text-surface-700 dark:border-surface-700 dark:text-surface-200"
+                    >
                       <Checkbox
                         binary
                         :model-value="allCurrentRowsSelected"
@@ -306,9 +295,18 @@
                           :title="`复制${field.label}列`"
                           @click="handleCopyColumn(field.key, field.label)"
                         >
-                          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
-                            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+                          <svg
+                            class="h-3.5 w-3.5"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+                            />
+                            <path
+                              d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -324,9 +322,7 @@
                       :style="getColumnStyle('actions')"
                       class="group sticky right-0 z-10 border-b border-surface-200 bg-surface-100 px-3 py-2 text-left font-medium text-surface-700 shadow-[-6px_0_8px_-8px_rgba(15,23,42,0.25)] dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
                     >
-                      <div class="truncate pr-3">
-                        操作
-                      </div>
+                      <div class="truncate pr-3">操作</div>
                       <button
                         type="button"
                         class="absolute right-0 top-0 h-full w-2 cursor-col-resize opacity-0 transition group-hover:opacity-100"
@@ -343,7 +339,11 @@
                       :colspan="visibleFieldConfigs.length + 2"
                       class="px-4 py-10 text-center text-surface-500 dark:text-surface-400"
                     >
-                      {{ activeTab === 'generate' ? '还没有生成结果，请点击“生成资料”。' : '还没有收藏记录。' }}
+                      {{
+                        activeTab === 'generate'
+                          ? '还没有生成结果，请点击“生成资料”。'
+                          : '还没有收藏记录。'
+                      }}
                     </td>
                   </tr>
 
@@ -352,7 +352,9 @@
                     :key="row.idCard"
                     :class="getRowClasses(row.idCard)"
                   >
-                    <td class="border-b border-surface-200 px-3 py-2 text-center dark:border-surface-700">
+                    <td
+                      class="border-b border-surface-200 px-3 py-2 text-center dark:border-surface-700"
+                    >
                       <Checkbox
                         binary
                         :model-value="isRowSelected(row.idCard)"
@@ -433,15 +435,12 @@
     >
       <div class="grid gap-4">
         <div class="grid gap-2">
-          <label class="text-sm font-medium">字段名称</label>
-          <InputText
-            v-model="customFieldDraftLabel"
-            placeholder="例如：随机密码"
-          />
+          <label class="font-medium">字段名称</label>
+          <InputText v-model="customFieldDraftLabel" placeholder="例如：随机密码" />
         </div>
 
         <div class="grid gap-2">
-          <label class="text-sm font-medium">JS 代码</label>
+          <label class="font-medium">JS 代码</label>
           <Textarea
             v-model="customFieldDraftCode"
             rows="10"
@@ -453,15 +452,8 @@
       </div>
 
       <template #footer>
-        <Button
-          label="取消"
-          text
-          @click="closeCustomFieldDialog"
-        />
-        <Button
-          label="保存"
-          @click="saveCustomFieldDialog"
-        />
+        <Button label="取消" text @click="closeCustomFieldDialog" />
+        <Button label="保存" @click="saveCustomFieldDialog" />
       </template>
     </Dialog>
   </div>
@@ -662,8 +654,7 @@ watch(
       if (generatorOptions.value.cityCode !== onlyCityCode) {
         store.setCityCode(onlyCityCode)
       }
-    }
-    else if (generatorOptions.value.cityCode) {
+    } else if (generatorOptions.value.cityCode) {
       const exists = cityOptions.value.some((item) => {
         return item.value === generatorOptions.value.cityCode
       })
@@ -701,7 +692,7 @@ watch(
 watch(
   currentRows,
   (rows) => {
-    const validIdSet = new Set(rows.map(row => row.idCard))
+    const validIdSet = new Set(rows.map((row) => row.idCard))
     const nextSelectedIds = currentSelectedRowIds.value.filter((id) => {
       return validIdSet.has(id)
     })
@@ -763,7 +754,10 @@ function syncBirthDay() {
     return
   }
 
-  const validDays = createDayOptions(generatorOptions.value.birthYear, generatorOptions.value.birthMonth)
+  const validDays = createDayOptions(
+    generatorOptions.value.birthYear,
+    generatorOptions.value.birthMonth,
+  )
   const exists = validDays.some((item) => {
     return item.value === generatorOptions.value.birthDay
   })
@@ -836,7 +830,7 @@ function handleRowSelectionChange(idCard: string, checked: boolean) {
     return
   }
 
-  currentSelectedRowIds.value = currentSelectedRowIds.value.filter(id => id !== idCard)
+  currentSelectedRowIds.value = currentSelectedRowIds.value.filter((id) => id !== idCard)
 }
 
 function handleSelectAllRows(checked: boolean) {
@@ -845,7 +839,7 @@ function handleSelectAllRows(checked: boolean) {
     return
   }
 
-  currentSelectedRowIds.value = currentRows.value.map(row => row.idCard)
+  currentSelectedRowIds.value = currentRows.value.map((row) => row.idCard)
 }
 
 function clearCurrentSelection() {
@@ -892,7 +886,10 @@ function handleColumnResize(event: MouseEvent) {
   }
 
   const nextWidth = resizeStartWidth.value + event.clientX - resizeStartX.value
-  store.setColumnWidth(resizingColumnKey.value, clampColumnWidth(resizingColumnKey.value, nextWidth))
+  store.setColumnWidth(
+    resizingColumnKey.value,
+    clampColumnWidth(resizingColumnKey.value, nextWidth),
+  )
 }
 
 function stopColumnResize() {
@@ -909,7 +906,9 @@ async function handleGenerate() {
   await store.generateRows()
 
   if (lastCustomFieldErrorCount.value > 0) {
-    toast.success(`已生成 ${generatedRows.value.length} 条资料，${lastCustomFieldErrorCount.value} 个自定义值执行失败`)
+    toast.success(
+      `已生成 ${generatedRows.value.length} 条资料，${lastCustomFieldErrorCount.value} 个自定义值执行失败`,
+    )
     return
   }
 
@@ -985,8 +984,7 @@ function saveCustomFieldDialog() {
       code: customFieldDraftCode.value,
     })
     toast.success('已更新自定义字段')
-  }
-  else {
+  } else {
     store.addCustomField({
       label,
       code: customFieldDraftCode.value,
@@ -1043,7 +1041,10 @@ async function handleCopyColumn(fieldKey: IdentityFieldKey, label: string) {
   toast.success(`已复制${label}列 (${columnValues.length} 条)`)
 }
 
-async function handleCopyRowWithFormat(row: IdentityRecord | FavoriteIdentityRecord, format: ExportFormat) {
+async function handleCopyRowWithFormat(
+  row: IdentityRecord | FavoriteIdentityRecord,
+  format: ExportFormat,
+) {
   const text = serializeRows([row], fieldConfigs.value, format)
   await writeText(text)
   toast.success(`已复制 ${row.name} 的 ${getFormatName(format)}`)

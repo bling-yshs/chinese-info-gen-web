@@ -9,17 +9,17 @@ export type IdentityGender = 'male' | 'female'
 export type IdentityGenderOption = IdentityGender | 'random'
 export type IdentityNameLengthOption = 2 | 3 | 'random'
 export type ExportFormat = 'json' | 'csv' | 'tsv'
-export type IdentityBuiltInFieldKey
-  = | 'idCard'
-    | 'name'
-    | 'companyName'
-    | 'socialCreditCode'
-    | 'gender'
-    | 'birthDate'
-    | 'address'
-    | 'postalCode'
-    | 'phone'
-    | 'email'
+export type IdentityBuiltInFieldKey =
+  | 'idCard'
+  | 'name'
+  | 'companyName'
+  | 'socialCreditCode'
+  | 'gender'
+  | 'birthDate'
+  | 'address'
+  | 'postalCode'
+  | 'phone'
+  | 'email'
 export type IdentityCustomFieldKey = `custom:${string}`
 export type IdentityFieldKey = IdentityBuiltInFieldKey | IdentityCustomFieldKey
 export type IdentityColumnKey = IdentityFieldKey | 'actions'
@@ -376,7 +376,7 @@ return Array.from({ length }, () => {
 }
 
 export function createDefaultFieldConfigs(): IdentityFieldConfig[] {
-  return DEFAULT_FIELD_CONFIGS.map(item => ({ ...item }))
+  return DEFAULT_FIELD_CONFIGS.map((item) => ({ ...item }))
 }
 
 /**
@@ -412,7 +412,10 @@ export function createMonthOptions(): SelectOption<number>[] {
   return options
 }
 
-export function createDayOptions(year: number | null, month: number | null): SelectOption<number>[] {
+export function createDayOptions(
+  year: number | null,
+  month: number | null,
+): SelectOption<number>[] {
   if (!year || !month) {
     return []
   }
@@ -443,7 +446,9 @@ export async function listProvinceOptions(): Promise<SelectOption<string>[]> {
   return dataset.provinceOptions
 }
 
-export async function listCityOptions(provinceCode: string | null): Promise<SelectOption<string>[]> {
+export async function listCityOptions(
+  provinceCode: string | null,
+): Promise<SelectOption<string>[]> {
   if (!provinceCode) {
     return []
   }
@@ -460,9 +465,10 @@ export async function listDistrictOptions(
   const districts = getDistrictCandidates(dataset, provinceCode, cityCode)
 
   return districts.map((district) => {
-    const label = cityCode || district.cityName === district.provinceName
-      ? district.districtName
-      : `${district.cityName} / ${district.districtName}`
+    const label =
+      cityCode || district.cityName === district.provinceName
+        ? district.districtName
+        : `${district.cityName} / ${district.districtName}`
 
     return {
       label,
@@ -552,10 +558,13 @@ export function validateIdentityRecord(row: IdentityRecord): boolean {
 }
 
 export function getEnabledFieldConfigs(fieldConfigs: IdentityFieldConfig[]): IdentityFieldConfig[] {
-  return fieldConfigs.filter(item => item.enabled)
+  return fieldConfigs.filter((item) => item.enabled)
 }
 
-export function getFieldValue(row: IdentityRecord | FavoriteIdentityRecord, key: IdentityFieldKey): string {
+export function getFieldValue(
+  row: IdentityRecord | FavoriteIdentityRecord,
+  key: IdentityFieldKey,
+): string {
   if (isCustomFieldKey(key)) {
     return row.customValues?.[getCustomFieldId(key)] ?? ''
   }
@@ -627,7 +636,9 @@ export function createDefaultColumnWidths(): IdentityColumnWidths {
  * 获取指定字段的默认列宽。
  */
 export function getDefaultColumnWidth(key: IdentityColumnKey): number {
-  return DEFAULT_COLUMN_WIDTHS[key as keyof typeof DEFAULT_COLUMN_WIDTHS] ?? DEFAULT_CUSTOM_COLUMN_WIDTH
+  return (
+    DEFAULT_COLUMN_WIDTHS[key as keyof typeof DEFAULT_COLUMN_WIDTHS] ?? DEFAULT_CUSTOM_COLUMN_WIDTH
+  )
 }
 
 /**
@@ -724,7 +735,7 @@ async function fillCustomFieldValues(
       ...row,
       customValues: {
         ...row.customValues,
-        ...(customFieldValues[row.uid] ?? {}),
+        ...customFieldValues[row.uid],
       },
     }
   })
@@ -737,7 +748,9 @@ function executeCustomFieldsInWorker(
   rows: IdentityRecord[],
   fieldConfigs: IdentityFieldConfig[],
 ): Promise<Record<string, Record<string, string>>> {
-  const workerUrl = URL.createObjectURL(new Blob([createCustomFieldWorkerSource()], { type: 'text/javascript' }))
+  const workerUrl = URL.createObjectURL(
+    new Blob([createCustomFieldWorkerSource()], { type: 'text/javascript' }),
+  )
   const worker = new Worker(workerUrl)
   const customFields = fieldConfigs.map((fieldConfig) => {
     return {
@@ -753,12 +766,15 @@ function executeCustomFieldsInWorker(
       resolve(createTimedOutCustomFieldValues(rows, customFields))
     }, CUSTOM_FIELD_WORKER_TIMEOUT_MS)
 
-    worker.addEventListener('message', (event: MessageEvent<Record<string, Record<string, string>>>) => {
-      window.clearTimeout(timer)
-      worker.terminate()
-      URL.revokeObjectURL(workerUrl)
-      resolve(event.data)
-    })
+    worker.addEventListener(
+      'message',
+      (event: MessageEvent<Record<string, Record<string, string>>>) => {
+        window.clearTimeout(timer)
+        worker.terminate()
+        URL.revokeObjectURL(workerUrl)
+        resolve(event.data)
+      },
+    )
 
     worker.addEventListener('error', () => {
       window.clearTimeout(timer)
@@ -869,7 +885,7 @@ self.addEventListener('message', (event) => {
  */
 function createTimedOutCustomFieldValues(
   rows: IdentityRecord[],
-  customFields: Array<{ id: string, code: string }>,
+  customFields: Array<{ id: string; code: string }>,
 ): Record<string, Record<string, string>> {
   return createFallbackCustomFieldValues(rows, customFields, CUSTOM_FIELD_TIMEOUT_VALUE)
 }
@@ -879,7 +895,7 @@ function createTimedOutCustomFieldValues(
  */
 function createFailedCustomFieldValues(
   rows: IdentityRecord[],
-  customFields: Array<{ id: string, code: string }>,
+  customFields: Array<{ id: string; code: string }>,
 ): Record<string, Record<string, string>> {
   return createFallbackCustomFieldValues(rows, customFields, CUSTOM_FIELD_ERROR_VALUE)
 }
@@ -889,7 +905,7 @@ function createFailedCustomFieldValues(
  */
 function createFallbackCustomFieldValues(
   rows: IdentityRecord[],
-  customFields: Array<{ id: string, code: string }>,
+  customFields: Array<{ id: string; code: string }>,
   value: string,
 ): Record<string, Record<string, string>> {
   const valuesByRowUid: Record<string, Record<string, string>> = {}
@@ -909,7 +925,7 @@ function createFallbackCustomFieldValues(
 
 function resolveArea(options: GeneratorOptions, dataset: AreaDataset): ResolvedArea {
   if (options.districtCode) {
-    const district = dataset.allDistricts.find(item => item.districtCode === options.districtCode)
+    const district = dataset.allDistricts.find((item) => item.districtCode === options.districtCode)
     if (district) {
       return district
     }
@@ -941,7 +957,7 @@ function getDistrictCandidates(
   return dataset.allDistricts
 }
 
-function resolveBirthDate(options: GeneratorOptions): { compact: string, display: string } {
+function resolveBirthDate(options: GeneratorOptions): { compact: string; display: string } {
   const year = options.birthYear ?? randomInt(MIN_BIRTH_YEAR, MAX_BIRTH_YEAR)
   const month = options.birthMonth ?? randomInt(1, 12)
   const totalDays = dayjs(`${year}-${padNumber(month)}-01`).daysInMonth()
@@ -1045,12 +1061,10 @@ function buildSocialCreditCodeBody(): string {
 }
 
 function calculateSocialCreditCodeCheckChar(baseCode: string): string {
-  const sum = baseCode
-    .split('')
-    .reduce((total, current, index) => {
-      return total + getSocialCreditCodeValue(current) * (SOCIAL_CREDIT_CODE_WEIGHTS[index] ?? 0)
-    }, 0)
-  const checkValue = (31 - sum % 31) % 31
+  const sum = baseCode.split('').reduce((total, current, index) => {
+    return total + getSocialCreditCodeValue(current) * (SOCIAL_CREDIT_CODE_WEIGHTS[index] ?? 0)
+  }, 0)
+  const checkValue = (31 - (sum % 31)) % 31
   const checkChar = SOCIAL_CREDIT_CODE_CHARS[checkValue]
 
   if (!checkChar) {
@@ -1112,7 +1126,7 @@ async function loadAreaDataset(): Promise<AreaDataset> {
     throw new Error('地区数据加载失败')
   }
 
-  const roots = await response.json() as LevelRoot[]
+  const roots = (await response.json()) as LevelRoot[]
   return buildAreaDatasetFromLevelTree(roots)
 }
 
@@ -1244,7 +1258,7 @@ function toDelimitedText(
   const enabledFields = getEnabledFieldConfigs(fieldConfigs)
   const lines = rows.map((row) => {
     return enabledFields
-      .map(field => escapeDelimitedCell(getFieldValue(row, field.key), delimiter))
+      .map((field) => escapeDelimitedCell(getFieldValue(row, field.key), delimiter))
       .join(delimiter)
   })
 

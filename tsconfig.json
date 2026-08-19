@@ -1,12 +1,4 @@
 {
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "strict": true,
-    "esModuleInterop": true
-  },
   "references": [
     {
       "path": "./tsconfig.node.json"

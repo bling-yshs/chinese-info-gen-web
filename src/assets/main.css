@@ -1,8 +1,9 @@
-@import "tailwindcss";
-@import "tailwindcss-primeui";
+@import 'tailwindcss';
+@import 'tailwindcss-primeui';
 
 /* Primary and Surface Palettes */
 :root {
+  font-size: 14px;
   --p-primary-50: #ecfdf5;
   --p-primary-100: #d1fae5;
   --p-primary-200: #a7f3d0;

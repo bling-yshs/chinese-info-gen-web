@@ -5,8 +5,17 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      redirect: '/home',
+    },
+    {
+      path: '/home',
       name: 'home',
       component: () => import('@/views/home/home-index.vue'),
+    },
+    {
+      path: '/responsive-test',
+      name: 'responsive-test',
+      component: () => import('@/views/响应式测试.vue'),
     },
   ],
 })

@@ -44,7 +44,7 @@ function normalizeCustomFieldConfig(fieldConfig: IdentityFieldConfig): IdentityF
  */
 function normalizeFieldConfigs(fieldConfigs: IdentityFieldConfig[]): IdentityFieldConfig[] {
   const defaultFieldConfigs = createDefaultFieldConfigs()
-  const defaultFieldConfigMap = new Map(defaultFieldConfigs.map(item => [item.key, item]))
+  const defaultFieldConfigMap = new Map(defaultFieldConfigs.map((item) => [item.key, item]))
   const nextFieldConfigs: IdentityFieldConfig[] = []
 
   for (const fieldConfig of fieldConfigs) {
@@ -131,7 +131,7 @@ export const useIdentityGeneratorStore = defineStore(
     const lastCustomFieldErrorCount = ref(0)
 
     const favoriteIdCardSet = computed(() => {
-      return new Set(favorites.value.map(item => item.idCard))
+      return new Set(favorites.value.map((item) => item.idCard))
     })
 
     function setActiveTab(tab: IdentityTab) {
@@ -167,7 +167,7 @@ export const useIdentityGeneratorStore = defineStore(
     }
 
     function toggleFieldEnabled(key: IdentityFieldConfig['key']) {
-      const target = fieldConfigs.value.find(item => item.key === key)
+      const target = fieldConfigs.value.find((item) => item.key === key)
       if (!target) {
         return
       }
@@ -176,7 +176,7 @@ export const useIdentityGeneratorStore = defineStore(
     }
 
     function setFieldEnabled(key: IdentityFieldConfig['key'], enabled: boolean) {
-      const target = fieldConfigs.value.find(item => item.key === key)
+      const target = fieldConfigs.value.find((item) => item.key === key)
       if (!target) {
         return
       }
@@ -185,7 +185,7 @@ export const useIdentityGeneratorStore = defineStore(
     }
 
     function replaceFieldConfigs(nextFieldConfigs: IdentityFieldConfig[]) {
-      fieldConfigs.value = normalizeFieldConfigs(nextFieldConfigs.map(item => ({ ...item })))
+      fieldConfigs.value = normalizeFieldConfigs(nextFieldConfigs.map((item) => ({ ...item })))
     }
 
     function setColumnWidth(key: IdentityColumnKey, width: number) {
@@ -242,9 +242,11 @@ export const useIdentityGeneratorStore = defineStore(
 
       try {
         generatedRows.value = await generateIdentityRows(generatorOptions.value, fieldConfigs.value)
-        lastCustomFieldErrorCount.value = countCustomFieldExecutionErrors(generatedRows.value, fieldConfigs.value)
-      }
-      finally {
+        lastCustomFieldErrorCount.value = countCustomFieldExecutionErrors(
+          generatedRows.value,
+          fieldConfigs.value,
+        )
+      } finally {
         isGenerating.value = false
       }
     }
@@ -266,11 +268,11 @@ export const useIdentityGeneratorStore = defineStore(
     }
 
     function removeFavorite(idCard: string) {
-      favorites.value = favorites.value.filter(item => item.idCard !== idCard)
+      favorites.value = favorites.value.filter((item) => item.idCard !== idCard)
     }
 
     function updateFavoriteNote(idCard: string, note: string) {
-      const target = favorites.value.find(item => item.idCard === idCard)
+      const target = favorites.value.find((item) => item.idCard === idCard)
       if (!target) {
         return
       }
@@ -322,9 +324,16 @@ export const useIdentityGeneratorStore = defineStore(
   },
   {
     persist: {
-      pick: ['activeTab', 'generatorOptions', 'fieldConfigs', 'columnWidths', 'favorites', 'generatedRows'],
+      pick: [
+        'activeTab',
+        'generatorOptions',
+        'fieldConfigs',
+        'columnWidths',
+        'favorites',
+        'generatedRows',
+      ],
       afterHydrate: (context) => {
-        const store = context.store as unknown as {
+        const store = context.store as {
           generatorOptions: GeneratorOptions
           fieldConfigs: IdentityFieldConfig[]
           columnWidths: IdentityColumnWidths
