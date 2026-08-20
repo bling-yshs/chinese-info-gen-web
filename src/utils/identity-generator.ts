@@ -482,6 +482,14 @@ export async function generateIdentityRows(
   fieldConfigs: IdentityFieldConfig[] = [],
 ): Promise<IdentityRecord[]> {
   const dataset = await getAreaDataset()
+  return generateIdentityRowsFromDataset(options, dataset, fieldConfigs)
+}
+
+export async function generateIdentityRowsFromDataset(
+  options: GeneratorOptions,
+  dataset: AreaDataset,
+  fieldConfigs: IdentityFieldConfig[] = [],
+): Promise<IdentityRecord[]> {
   const count = sanitizeCount(options.count)
   const rows: IdentityRecord[] = []
   const usedIdCards = new Set<string>()
@@ -572,19 +580,26 @@ export function getFieldValue(
   return String(row[key] ?? '')
 }
 
+export function toJsonRecord(
+  row: IdentityRecord | FavoriteIdentityRecord,
+  fieldConfigs: IdentityFieldConfig[],
+): Record<string, string> {
+  const enabledFields = getEnabledFieldConfigs(fieldConfigs)
+  const result = {} as Record<string, string>
+
+  for (const field of enabledFields) {
+    result[field.label] = getFieldValue(row, field.key)
+  }
+
+  return result
+}
+
 export function toJsonText(
   rows: Array<IdentityRecord | FavoriteIdentityRecord>,
   fieldConfigs: IdentityFieldConfig[],
 ): string {
-  const enabledFields = getEnabledFieldConfigs(fieldConfigs)
   const payload = rows.map((row) => {
-    const result = {} as Record<string, string>
-
-    for (const field of enabledFields) {
-      result[field.label] = getFieldValue(row, field.key)
-    }
-
-    return result
+    return toJsonRecord(row, fieldConfigs)
   })
 
   return JSON.stringify(payload, null, 2)
@@ -1130,7 +1145,7 @@ async function loadAreaDataset(): Promise<AreaDataset> {
   return buildAreaDatasetFromLevelTree(roots)
 }
 
-function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
+export function buildAreaDatasetFromLevelTree(roots: LevelRoot[]): AreaDataset {
   const areaNameMap = {} as Record<string, string>
   const provinceOptions: SelectOption<string>[] = []
   const citiesByProvince = {} as Record<string, SelectOption<string>[]>
